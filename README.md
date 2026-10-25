@@ -13,18 +13,19 @@ hybrid retrieval, agentic RAG with citations, abstention, and contradiction dete
 
 ## Local development
 
+Requires [uv](https://docs.astral.sh/uv/); it installs the pinned Python version itself.
+
 ```bash
-cd apps/api
-uv sync
-cp .env.example .env
-uv run uvicorn --factory investigation_engine.main:create_app --reload
+cp apps/api/.env.example apps/api/.env
+make api-install
+make api-dev        # http://localhost:8000/health
 ```
 
 ## Quality gates
 
 ```bash
-cd apps/api
-uv run ruff check . && uv run ruff format --check .
-uv run mypy src tests
-uv run pytest
+make api-format     # auto-format and auto-fix
+make api-check      # lint, format check, mypy, tests (same as CI)
 ```
+
+Run `make help` for all targets.

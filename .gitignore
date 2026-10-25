@@ -1,4 +1,7 @@
+# Secrets
 .env
+
+# Python
 .venv/
 __pycache__/
 *.pyc
@@ -6,6 +9,16 @@ __pycache__/
 .ruff_cache/
 .pytest_cache/
 .coverage
+
+# Node
+node_modules/
+dist/
+
+# Local data and vector store
 data/raw/
 data/processed/
 qdrant_storage/
+
+# Editors and OS
+.idea/
+.DS_Store
