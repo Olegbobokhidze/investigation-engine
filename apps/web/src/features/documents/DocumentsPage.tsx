@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 
 import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
+import { usePageTitle } from "@/shared/hooks/usePageTitle";
 import { ConfirmDialog } from "@/shared/ui/ConfirmDialog";
 import { ErrorNotice } from "@/shared/ui/ErrorNotice";
 import { PageContainer } from "@/shared/ui/PageContainer";
@@ -37,6 +38,7 @@ function toSearchParams(search: string, page: number): URLSearchParams {
 }
 
 export function DocumentsPage() {
+  usePageTitle("Documents");
   const [searchParams, setSearchParams] = useSearchParams();
   const search = searchParams.get("search") ?? "";
   const page = parsePage(searchParams.get("page"));

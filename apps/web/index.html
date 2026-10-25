@@ -3,12 +3,54 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Investigation Engine — answers you can trace to the source</title>
     <meta
       name="description"
-      content="Ask questions across a document collection and get answers that cite their sources."
+      content="Ask multi-hop questions across thousands of documents. Every answer cites its sources, flags conflicting evidence, and abstains when the documents don’t support it."
     />
+    <meta name="theme-color" content="#F6F7F9" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>Investigation Engine</title>
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!--
+      Link previews (Open Graph, X/Twitter). Crawlers don't run JavaScript and need absolute
+      URLs, so these are static and point at the production domain — update them if it changes.
+    -->
+    <link rel="canonical" href="https://investigation-engine-xi.vercel.app/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Investigation Engine" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:url" content="https://investigation-engine-xi.vercel.app/" />
+    <meta
+      property="og:title"
+      content="Investigation Engine — answers you can trace to the source"
+    />
+    <meta
+      property="og:description"
+      content="Multi-hop questions across thousands of documents, answered with citations — or not at all."
+    />
+    <meta property="og:image" content="https://investigation-engine-xi.vercel.app/og-image.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Investigation Engine: an answer with numbered citations, a conflicting-evidence notice and its source documents."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:title"
+      content="Investigation Engine — answers you can trace to the source"
+    />
+    <meta
+      name="twitter:description"
+      content="Multi-hop questions across thousands of documents, answered with citations — or not at all."
+    />
+    <meta name="twitter:image" content="https://investigation-engine-xi.vercel.app/og-image.png" />
+    <meta
+      name="twitter:image:alt"
+      content="Investigation Engine: an answer with numbered citations, a conflicting-evidence notice and its source documents."
+    />
   </head>
   <body>
     <div id="root"></div>

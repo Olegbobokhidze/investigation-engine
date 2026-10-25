@@ -1,6 +1,7 @@
 import { LoaderCircle } from "lucide-react";
 import { useState } from "react";
 
+import { usePageTitle } from "@/shared/hooks/usePageTitle";
 import { ErrorNotice } from "@/shared/ui/ErrorNotice";
 import { PageContainer } from "@/shared/ui/PageContainer";
 
@@ -13,6 +14,7 @@ import { SourceList } from "./components/SourceList";
 const minQuestionLength = 10;
 
 export function InvestigationPage() {
+  usePageTitle("Investigate");
   const [question, setQuestion] = useState("");
   const [validationError, setValidationError] = useState<string>();
   const [activeSourceNumber, setActiveSourceNumber] = useState<number | null>(null);
