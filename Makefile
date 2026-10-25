@@ -1,9 +1,10 @@
 # Single entry point for common tasks. Run `make help` to list them.
 
 API := uv --directory apps/api
+WEB := pnpm --dir apps/web
 
 .DEFAULT_GOAL := help
-.PHONY: help api-install api-dev api-format api-check
+.PHONY: help api-install api-dev api-format api-check web-install web-dev web-format web-check
 
 help: ## List available targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
@@ -23,3 +24,19 @@ api-check: ## Run all backend quality gates (same as CI)
 	$(API) run ruff format --check .
 	$(API) run mypy src tests
 	$(API) run pytest -q
+
+web-install: ## Install frontend dependencies
+	$(WEB) install
+
+web-dev: ## Run the frontend dev server on :5173
+	$(WEB) dev
+
+web-format: ## Auto-format frontend code
+	$(WEB) format
+
+web-check: ## Run all frontend quality gates (same as CI)
+	$(WEB) lint
+	$(WEB) format:check
+	$(WEB) typecheck
+	$(WEB) test
+	$(WEB) build

@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens. The default palette and type scale are reset so that only these
+ * values exist as utilities: every color and size in the app comes from this list.
+ */
+@theme {
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, monospace;
+
+  --text-*: initial;
+  --text-2xs: 10.5px;
+  --text-xs: 12.5px;
+  --text-sm: 13.5px;
+  --text-md: 14px;
+  --text-base: 15px;
+  --text-lg: 16px;
+  --text-xl: 18px;
+  --text-2xl: 26px;
+
+  --color-*: initial;
+  --color-white: #ffffff;
+
+  --color-canvas: #f6f7f9;
+  --color-surface: #ffffff;
+  --color-surface-hover: #fafbfc;
+  --color-subtle: #f1f2f4;
+  --color-subtle-strong: #eceef1;
+
+  --color-border: #e3e6eb;
+  --color-border-subtle: #edeff2;
+  --color-border-strong: #d9dde3;
+  --color-border-hover: #bfc5cf;
+  --color-border-dashed: #c3c9d3;
+
+  --color-ink: #14161a;
+  --color-ink-body: #23262d;
+  --color-ink-secondary: #4b5260;
+  --color-ink-tertiary: #5b616e;
+  --color-ink-muted: #6b7280;
+  --color-ink-disabled: #8a909c;
+
+  --color-accent: #2b4fd8;
+  --color-accent-hover: #2343c0;
+  --color-accent-soft: #eef2fe;
+  --color-accent-border: #c9d3f8;
+
+  --color-success: #1f7a4d;
+  --color-success-soft: #eaf6ef;
+  --color-success-dot: #1f9d5c;
+
+  --color-warning: #7a4600;
+  --color-warning-body: #6b3d00;
+  --color-warning-icon: #9a5b00;
+  --color-warning-soft: #fff6e5;
+  --color-warning-border: #f5d9a8;
+
+  --color-danger: #b42318;
+  --color-danger-hover: #93190f;
+  --color-danger-soft: #fdecea;
+  --color-danger-border: #f3c5c0;
+  --color-danger-dot: #d92d20;
+
+  --color-neutral-dot: #8a909c;
+
+  --radius-control: 10px;
+}
+
+@utility focus-ring {
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 22%, transparent);
+  }
+}
+
+@layer base {
+  body {
+    @apply bg-canvas font-sans text-ink antialiased;
+  }
+}
