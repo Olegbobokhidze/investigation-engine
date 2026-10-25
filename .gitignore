@@ -21,6 +21,9 @@ data/raw/
 data/processed/
 qdrant_storage/
 
+# Personal Claude Code settings (shared ones live in .claude/settings.json)
+.claude/settings.local.json
+
 # Editors and OS
 .idea/
 .DS_Store

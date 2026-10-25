@@ -11,6 +11,8 @@ hybrid retrieval, agentic RAG with citations, abstention, and contradiction dete
 |---|---|
 | `apps/api` | Python backend (FastAPI), managed with uv |
 | `apps/web` | Web UI (React, TypeScript, Vite, Tailwind CSS), managed with pnpm |
+| `docs/` | Project documentation, including the AI usage log |
+| `AGENTS.md`, `CLAUDE.md`, `.claude/` | Instructions and tooling for AI coding agents (see below) |
 
 ## Local development
 
@@ -42,3 +44,19 @@ make web-check      # lint, format check, type check, tests, build (same as CI)
 ```
 
 Run `make help` for all targets.
+
+## Working with AI agents
+
+The repository is set up for AI coding agents, and every AI-assisted change is logged in
+[`docs/ai-usage.md`](docs/ai-usage.md).
+
+- **`AGENTS.md`** (root, `apps/api`, `apps/web`) — scope, commands, conventions and the
+  API contract, in the cross-tool `AGENTS.md` format. `CLAUDE.md` files import them for
+  Claude Code.
+- **`.claude/settings.json`** — the agent may run the quality gates; it may not read `.env`
+  files or commit/push.
+- **`.claude/hooks/format-edited-file.mjs`** — formats every file the agent edits with ruff
+  or Prettier.
+- **`.claude/agents/`** — read-only reviewers: `contract-guardian` (backend ↔ frontend ↔
+  mocks) and `convention-reviewer` (repo conventions and scope).
+- **`.claude/skills/`** — `/check`, `/add-endpoint`, `/log-ai-usage`.
