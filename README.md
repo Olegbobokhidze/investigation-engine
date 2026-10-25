@@ -3,6 +3,9 @@
 Multi-hop, evidence-grounded question answering over large document collections:
 hybrid retrieval, agentic RAG with citations, abstention, and contradiction detection.
 
+**Live demo:** https://investigation-engine-xi.vercel.app — the web app currently runs against
+a mocked API; the backend is being connected.
+
 > Work in progress. Architecture, evaluation and deployment docs will be added as the system lands.
 
 ## Repository layout
