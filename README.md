@@ -5,18 +5,26 @@ hybrid retrieval, agentic RAG with citations, abstention, and contradiction dete
 
 > Work in progress. Architecture, evaluation and deployment docs will be added as the system lands.
 
+## Repository layout
+
+| Path | Contents |
+|---|---|
+| `apps/api` | Python backend (FastAPI), managed with uv |
+
 ## Local development
 
 ```bash
+cd apps/api
 uv sync
 cp .env.example .env
-uv run uvicorn app.main:app --reload
+uv run uvicorn investigation_engine.main:app --reload
 ```
 
 ## Quality gates
 
 ```bash
+cd apps/api
 uv run ruff check . && uv run ruff format --check .
-uv run mypy app
+uv run mypy src
 uv run pytest
 ```

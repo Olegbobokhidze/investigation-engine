@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 
-from app.config import Settings
-from app.main import create_app
+from investigation_engine.core.config import Settings
+from investigation_engine.main import create_app
 
 
 def test_health_returns_ok() -> None:

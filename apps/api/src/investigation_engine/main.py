@@ -3,10 +3,10 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from app.api.routes import health
-from app.config import Settings, get_settings
-from app.core.errors import AppError
-from app.core.logging import configure_logging
+from investigation_engine.api.routes import health
+from investigation_engine.core.config import Settings, get_settings
+from investigation_engine.core.errors import AppError
+from investigation_engine.core.logging import configure_logging
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
