@@ -21,12 +21,12 @@ class NotFoundError(AppError):
     code = "not_found"
 
 
-class ValidationError(AppError):
+class InvalidInputError(AppError):
     status_code = 422
-    code = "validation_error"
+    code = "invalid_input"
 
 
-class UnsupportedFormatError(ValidationError):
+class UnsupportedFormatError(InvalidInputError):
     code = "unsupported_format"
 
 

@@ -17,7 +17,7 @@ hybrid retrieval, agentic RAG with citations, abstention, and contradiction dete
 cd apps/api
 uv sync
 cp .env.example .env
-uv run uvicorn investigation_engine.main:app --reload
+uv run uvicorn --factory investigation_engine.main:create_app --reload
 ```
 
 ## Quality gates
@@ -25,6 +25,6 @@ uv run uvicorn investigation_engine.main:app --reload
 ```bash
 cd apps/api
 uv run ruff check . && uv run ruff format --check .
-uv run mypy src
+uv run mypy src tests
 uv run pytest
 ```

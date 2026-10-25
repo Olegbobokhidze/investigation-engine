@@ -1,4 +1,8 @@
-"""FastAPI application factory."""
+"""FastAPI application factory.
+
+Run with `uvicorn --factory investigation_engine.main:create_app`, so settings are read
+when the server starts rather than as a side effect of importing this module.
+"""
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -24,6 +28,3 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
 
     return app
-
-
-app = create_app()

@@ -4,8 +4,10 @@ import logging
 
 import structlog
 
+from investigation_engine.core.config import LogLevel
 
-def configure_logging(level: str, *, json: bool) -> None:
+
+def configure_logging(level: LogLevel, *, json: bool) -> None:
     logging.basicConfig(format="%(message)s", level=level)
     renderer: structlog.types.Processor = (
         structlog.processors.JSONRenderer() if json else structlog.dev.ConsoleRenderer()
@@ -17,5 +19,5 @@ def configure_logging(level: str, *, json: bool) -> None:
             structlog.processors.TimeStamper(fmt="iso"),
             renderer,
         ],
-        wrapper_class=structlog.make_filtering_bound_logger(logging.getLevelName(level)),
+        wrapper_class=structlog.make_filtering_bound_logger(logging.getLevelNamesMapping()[level]),
     )

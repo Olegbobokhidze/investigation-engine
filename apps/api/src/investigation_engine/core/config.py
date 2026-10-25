@@ -9,12 +9,15 @@ from typing import Literal
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+type Environment = Literal["dev", "test", "prod"]
+type LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR"]
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    env: Literal["dev", "test", "prod"] = "dev"
-    log_level: str = "INFO"
+    env: Environment = "dev"
+    log_level: LogLevel = "INFO"
 
     # Vector store
     qdrant_url: str = "http://localhost:6333"
