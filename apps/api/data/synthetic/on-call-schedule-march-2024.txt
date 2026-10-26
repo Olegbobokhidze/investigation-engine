@@ -1,0 +1,8 @@
+On-call schedule, March 2024 (weeks start Monday 00:00 UTC)
+
+Week of 4 March: primary Priya Raman (Identity), secondary Tomas Lindqvist (Payments).
+Week of 11 March: primary Nina Petrova (Payments), secondary Daniel Okafor (Platform Data).
+Week of 18 March: primary Tomas Lindqvist (Payments), secondary Aiko Tanaka (Risk).
+Week of 25 March: primary Aiko Tanaka (Risk), secondary Priya Raman (Identity).
+
+The primary engineer is paged first. The secondary is paged after 10 minutes without acknowledgement.

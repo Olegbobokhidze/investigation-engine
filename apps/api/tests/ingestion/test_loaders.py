@@ -45,7 +45,7 @@ def test_load_docx_extracts_paragraphs_tables_and_metadata() -> None:
     loaded = load_document(_docx_bytes(), "runbook.docx")
 
     assert loaded.file_type == FileType.DOCX
-    assert "Fraud scoring times out after 3 seconds." in loaded.text
+    assert loaded.text.startswith("# Timeouts\n\nFraud scoring times out after 3 seconds.")
     assert "Retries | 1" in loaded.text
     assert loaded.metadata["title"] == "checkout-api runbook"
     assert loaded.metadata["author"] == "Platform team"

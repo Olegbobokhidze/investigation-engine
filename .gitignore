@@ -16,10 +16,8 @@ __pycache__/
 node_modules/
 dist/
 
-# Local data and vector store
-data/raw/
-data/processed/
-qdrant_storage/
+# Downloaded datasets (re-created by the loaders; `**/` matches them in any app)
+**/data/raw/
 
 # Personal Claude Code settings (shared ones live in .claude/settings.json)
 .claude/settings.local.json

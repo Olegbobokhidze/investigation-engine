@@ -38,12 +38,7 @@ def create_app(
         text_embedder = embedder or Embedder(
             settings.embedding_model, settings.embedding_query_prefix
         )
-        api_key = settings.qdrant_api_key
-        vector_store = VectorStore(
-            settings.qdrant_url,
-            api_key.get_secret_value() if api_key else None,
-            settings.qdrant_collection,
-        )
+        vector_store = VectorStore.from_settings(settings)
         await vector_store.ensure_collection(text_embedder.dense_size)
 
         app.state.settings = settings

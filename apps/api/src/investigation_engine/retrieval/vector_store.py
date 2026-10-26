@@ -12,8 +12,9 @@ from dataclasses import asdict, dataclass
 from qdrant_client import AsyncQdrantClient, models
 from qdrant_client.http.exceptions import ApiException
 
+from investigation_engine.core.config import Settings
 from investigation_engine.core.errors import UpstreamError
-from investigation_engine.retrieval.embeddings import Embedding
+from investigation_engine.retrieval.embeddings import Embedding, SparseVector
 
 DENSE_VECTOR = "dense"
 SPARSE_VECTOR = "bm25"
@@ -36,6 +37,15 @@ class ChunkRecord:
     text: str
 
 
+@dataclass(frozen=True)
+class ScoredChunk:
+    """A search result from one vector: the chunk and its similarity score."""
+
+    point_id: str
+    score: float
+    record: ChunkRecord
+
+
 def chunk_point_id(document_id: str, chunk_index: int) -> str:
     return str(uuid.uuid5(_POINT_ID_NAMESPACE, f"{document_id}:{chunk_index}"))
 
@@ -49,8 +59,18 @@ async def _upstream_errors() -> AsyncIterator[None]:
 
 
 class VectorStore:
+    @classmethod
+    def from_settings(cls, settings: Settings) -> "VectorStore":
+        api_key = settings.qdrant_api_key
+        return cls(
+            settings.qdrant_url,
+            api_key.get_secret_value() if api_key else None,
+            settings.qdrant_collection,
+        )
+
     def __init__(self, url: str, api_key: str | None, collection: str) -> None:
-        self._client = AsyncQdrantClient(url=url, api_key=api_key)
+        # Bulk upserts to a cloud cluster can take longer than the client's 5 s default.
+        self._client = AsyncQdrantClient(url=url, api_key=api_key, timeout=60)
         self.collection = collection
 
     async def ensure_collection(self, dense_size: int) -> None:
@@ -105,6 +125,29 @@ class VectorStore:
         )
         async with _upstream_errors():
             await self._client.delete(self.collection, points_selector=selector, wait=True)
+
+    async def search_dense(self, vector: list[float], limit: int) -> list[ScoredChunk]:
+        """Nearest chunks by cosine similarity: matches by meaning."""
+        return await self._search(vector, DENSE_VECTOR, limit)
+
+    async def search_sparse(self, vector: SparseVector, limit: int) -> list[ScoredChunk]:
+        """Best BM25 matches: matches by exact terms."""
+        query = models.SparseVector(indices=vector.indices, values=vector.values)
+        return await self._search(query, SPARSE_VECTOR, limit)
+
+    async def _search(
+        self, query: list[float] | models.SparseVector, using: str, limit: int
+    ) -> list[ScoredChunk]:
+        async with _upstream_errors():
+            response = await self._client.query_points(
+                self.collection, query=query, using=using, limit=limit, with_payload=True
+            )
+        return [
+            ScoredChunk(
+                point_id=str(point.id), score=point.score, record=ChunkRecord(**point.payload or {})
+            )
+            for point in response.points
+        ]
 
     async def count(self) -> int:
         async with _upstream_errors():

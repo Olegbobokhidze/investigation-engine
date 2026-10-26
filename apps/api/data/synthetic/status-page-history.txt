@@ -1,0 +1,8 @@
+Status page history, Q1 2024
+
+8 Feb 2024, 14:12 UTC - Investigating: customers can't sign in. Payments are not affected.
+8 Feb 2024, 14:30 UTC - Resolved: sign-in works again.
+
+14 Mar 2024, 09:30 UTC - Investigating: card payments are slower than usual.
+14 Mar 2024, 09:58 UTC - Identified: a recent infrastructure change causes the slowdown. Merchant balances may be up to 25 minutes behind.
+14 Mar 2024, 10:20 UTC - Resolved: payments are processed normally. Receipt emails sent during the incident may arrive late.

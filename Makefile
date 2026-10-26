@@ -4,10 +4,11 @@ API := uv --directory apps/api
 WEB := pnpm --dir apps/web
 
 .DEFAULT_GOAL := help
-.PHONY: help services-up services-down api-install api-dev api-format api-check web-install web-dev web-format web-check
+.PHONY: help services-up services-down api-install api-dev api-format api-check \
+	data-hotpotqa data-synthetic eval-retrieval web-install web-dev web-format web-check
 
 help: ## List available targets
-	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
+	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-15s %s\n", $$1, $$2}'
 
 services-up: ## Start local Postgres (:5440) and Qdrant (:6333), wait until healthy
 	docker compose up -d --wait
@@ -30,6 +31,16 @@ api-check: ## Run all backend quality gates (same as CI)
 	$(API) run ruff format --check .
 	$(API) run mypy src tests
 	$(API) run pytest -q
+
+data-hotpotqa: ## Index the HotpotQA corpus (66k docs, resumable) into the .env services
+	$(API) run python -m investigation_engine.datasets.hotpotqa
+
+data-synthetic: ## Index the synthetic Northwind Pay corpus into the .env services
+	$(API) run python -m investigation_engine.datasets.synthetic
+
+eval-retrieval: ## Compare search configurations on HotpotQA (writes docs/evaluation/)
+	$(API) run python -m investigation_engine.evaluation.retrieval \
+		--output $(CURDIR)/docs/evaluation/retrieval-hotpotqa.json
 
 web-install: ## Install frontend dependencies
 	$(WEB) install

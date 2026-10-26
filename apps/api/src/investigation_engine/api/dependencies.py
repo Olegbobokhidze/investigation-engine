@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from investigation_engine.core.config import Settings
 from investigation_engine.core.database import Database
 from investigation_engine.documents.service import DocumentService
-from investigation_engine.ingestion.chunking import create_chunker
+from investigation_engine.ingestion.chunking import chunker_from_settings
 from investigation_engine.retrieval.embeddings import TextEmbedder
 from investigation_engine.retrieval.vector_store import VectorStore
 
@@ -32,10 +32,7 @@ def get_document_service(request: Request, session: SessionDependency) -> Docume
     settings: Settings = request.app.state.settings
     embedder: TextEmbedder = request.app.state.embedder
     vector_store: VectorStore = request.app.state.vector_store
-    chunker = create_chunker(
-        settings.chunking_strategy, settings.chunk_max_words, settings.chunk_overlap_words
-    )
-    return DocumentService(session, embedder, vector_store, chunker)
+    return DocumentService(session, embedder, vector_store, chunker_from_settings(settings))
 
 
 DocumentServiceDependency = Annotated[DocumentService, Depends(get_document_service)]

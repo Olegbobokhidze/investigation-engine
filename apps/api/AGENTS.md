@@ -13,7 +13,9 @@ src/investigation_engine/
 ├── ingestion/   loaders (pdf, docx, md, txt), chunking strategies, pipeline
 ├── retrieval/   embeddings, vector store, keyword search, fusion, reranking
 ├── llm/         LLM client (timeouts, retries), prompts
-└── investigation/  agentic RAG: planner, tools, verification, contradiction checks
+├── investigation/  agentic RAG: planner, tools, verification, contradiction checks
+├── datasets/    corpus loaders (HotpotQA, synthetic Northwind Pay) and bulk indexing
+└── evaluation/  metrics and evaluation runners
 tests/           mirrors src/ (tests/ingestion/test_loaders.py ↔ ingestion/loaders.py);
                  binary samples in tests/fixtures/
 ```

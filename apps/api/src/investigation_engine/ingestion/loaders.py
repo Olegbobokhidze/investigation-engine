@@ -12,6 +12,7 @@ from pathlib import Path
 
 import docx
 from docx.opc.exceptions import PackageNotFoundError
+from docx.text.paragraph import Paragraph
 from pypdf import PdfReader
 from pypdf.errors import PdfReadError
 
@@ -61,13 +62,23 @@ def load_pdf(content: bytes) -> LoadedDocument:
     return LoadedDocument(text="\n\n".join(pages), file_type=FileType.PDF, metadata=metadata)
 
 
+def _docx_paragraph_text(paragraph: Paragraph) -> str:
+    """The paragraph's text; Word headings become Markdown headings ("Heading 2" → "## "),
+    so the structure-aware chunker sees the document's sections."""
+    style = paragraph.style.name if paragraph.style is not None else ""
+    level = style.removeprefix("Heading ")
+    if style.startswith("Heading ") and level.isdigit():
+        return f"{'#' * int(level)} {paragraph.text}"
+    return paragraph.text
+
+
 def load_docx(content: bytes) -> LoadedDocument:
     try:
         document = docx.Document(BytesIO(content))
     except (PackageNotFoundError, zipfile.BadZipFile, KeyError) as error:
         raise UnreadableFileError("The DOCX file is damaged.") from error
 
-    paragraphs = [paragraph.text for paragraph in document.paragraphs]
+    paragraphs = [_docx_paragraph_text(paragraph) for paragraph in document.paragraphs]
     # Tables hold real content in reports and runbooks; keep each row as one line.
     for table in document.tables:
         for row in table.rows:

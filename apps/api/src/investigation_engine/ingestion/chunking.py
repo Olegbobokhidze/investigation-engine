@@ -16,7 +16,7 @@ import re
 from dataclasses import dataclass
 from typing import Protocol
 
-from investigation_engine.core.config import ChunkingStrategy
+from investigation_engine.core.config import ChunkingStrategy, Settings
 
 _HEADING = re.compile(r"^#{1,6}\s+(.+)$")
 # A sentence ends at . ! or ? followed by whitespace. Naive about abbreviations such as
@@ -124,3 +124,9 @@ def create_chunker(strategy: ChunkingStrategy, max_words: int, overlap_words: in
     if strategy == "fixed":
         return FixedSizeChunker(max_words=max_words, overlap_words=overlap_words)
     return StructuredChunker(max_words=max_words)
+
+
+def chunker_from_settings(settings: Settings) -> Chunker:
+    return create_chunker(
+        settings.chunking_strategy, settings.chunk_max_words, settings.chunk_overlap_words
+    )

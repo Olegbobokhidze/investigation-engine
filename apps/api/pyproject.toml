@@ -26,6 +26,9 @@ dev = [
     "mypy>=1.11",
     "httpx2>=2.16.0",
     "asyncpg-stubs>=0.32.0",
+    "pyarrow>=20",
+    "pyarrow-stubs>=20.0.0.20260819",
+    "fpdf2>=2.8",
 ]
 
 [build-system]
@@ -41,6 +44,10 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "B", "SIM", "RUF", "ASYNC", "PT"]
+
+[tool.ruff.lint.per-file-ignores]
+# Document bodies are prose: wrapping their lines would add line breaks to the documents.
+"src/investigation_engine/datasets/northwind_corpus.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.12"

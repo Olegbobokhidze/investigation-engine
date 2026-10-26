@@ -45,6 +45,13 @@ class Settings(BaseSettings):
     embedding_model: str = "BAAI/bge-small-en-v1.5"
     embedding_query_prefix: str = "Represent this sentence for searching relevant passages: "
 
+    # Hybrid search: candidates per retriever, then weighted RRF (see retrieval/fusion.py).
+    # Defaults are the RRF paper's; the evaluation tunes them.
+    search_candidates: int = Field(default=40, gt=0)
+    rrf_k: int = Field(default=60, ge=0)
+    rrf_dense_weight: float = Field(default=1.0, ge=0)
+    rrf_sparse_weight: float = Field(default=1.0, ge=0)
+
     # Chunking (sizes in words; overlap applies to the fixed strategy only)
     chunking_strategy: ChunkingStrategy = "structured"
     chunk_max_words: int = Field(default=200, gt=0)

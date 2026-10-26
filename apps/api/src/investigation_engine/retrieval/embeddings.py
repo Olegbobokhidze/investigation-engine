@@ -16,6 +16,10 @@ from fastembed import SparseTextEmbedding, TextEmbedding
 # BM25 term weights; Qdrant applies the IDF part at query time (see vector_store.py).
 SPARSE_MODEL = "Qdrant/bm25"
 
+# Texts in a batch are padded to the longest one, so small batches waste less compute on
+# padding: 32 embedded real HotpotQA paragraphs 1.5x faster than fastembed's default 256.
+_DENSE_BATCH_SIZE = 32
+
 
 @dataclass(frozen=True)
 class SparseVector:
@@ -48,7 +52,7 @@ class Embedder:
         self.dense_size: int = self._dense.embedding_size
 
     def embed_passages(self, texts: Sequence[str]) -> list[Embedding]:
-        dense = self._dense.passage_embed(texts)
+        dense = self._dense.passage_embed(texts, batch_size=_DENSE_BATCH_SIZE)
         sparse = self._sparse.passage_embed(texts)
         return [
             Embedding(

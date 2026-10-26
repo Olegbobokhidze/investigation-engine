@@ -39,6 +39,24 @@ make web-dev        # http://localhost:5173
 `investigations` (only investigations; documents use the real API at `VITE_API_BASE_URL`) or
 `disabled` (none).
 
+## Data
+
+Two corpora, both loaded as read-only `dataset` documents into the services in
+`apps/api/.env`. Both loaders are idempotent: a rerun skips what is already stored.
+
+```bash
+make data-hotpotqa    # 66,581 HotpotQA paragraphs (~45 min on a laptop CPU)
+make data-synthetic   # 11 Northwind Pay documents in PDF, DOCX, Markdown and TXT
+```
+
+- **HotpotQA** — every distinct paragraph of the
+  [dev distractor set](https://huggingface.co/datasets/hotpotqa/hotpot_qa), pinned to a
+  dataset revision and SHA-256. Its 7,405 questions come with their supporting paragraphs,
+  which are inside the corpus, so the same file gives the evaluation its gold answers.
+- **Northwind Pay** — a small synthetic company corpus with planted facts, multi-hop chains,
+  contradictions and unanswerable questions, documented in
+  [`docs/evaluation/northwind-ground-truth.md`](docs/evaluation/northwind-ground-truth.md).
+
 ## Quality gates
 
 ```bash
