@@ -11,6 +11,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 type Environment = Literal["dev", "test", "prod"]
 type LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR"]
+type ChunkingStrategy = Literal["fixed", "structured"]
 
 
 class Settings(BaseSettings):
@@ -37,6 +38,11 @@ class Settings(BaseSettings):
 
     # Embeddings
     embedding_model: str = "BAAI/bge-small-en-v1.5"
+
+    # Chunking (sizes in words; overlap applies to the fixed strategy only)
+    chunking_strategy: ChunkingStrategy = "structured"
+    chunk_max_words: int = Field(default=200, gt=0)
+    chunk_overlap_words: int = Field(default=40, ge=0)
 
 
 @lru_cache
