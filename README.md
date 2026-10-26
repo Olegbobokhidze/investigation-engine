@@ -34,9 +34,10 @@ make web-install
 make web-dev        # http://localhost:5173
 ```
 
-With `VITE_API_MOCKING=enabled` the web app answers API calls in the browser with mock data
-([Mock Service Worker](https://mswjs.io)), so it runs without the backend. Set it to `disabled`
-to use the real API at `VITE_API_BASE_URL`.
+`VITE_API_MOCKING` decides which API calls the web app answers in the browser with mock data
+([Mock Service Worker](https://mswjs.io)): `enabled` (all — no backend needed),
+`investigations` (only investigations; documents use the real API at `VITE_API_BASE_URL`) or
+`disabled` (none).
 
 ## Quality gates
 

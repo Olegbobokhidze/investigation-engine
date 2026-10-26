@@ -9,6 +9,7 @@ Models run on CPU (ONNX) and are synchronous: call them from async code through
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Protocol
 
 from fastembed import SparseTextEmbedding, TextEmbedding
 
@@ -26,6 +27,16 @@ class SparseVector:
 class Embedding:
     dense: list[float]
     sparse: SparseVector
+
+
+class TextEmbedder(Protocol):
+    """What the app needs from an embedder; tests substitute a fast fake."""
+
+    dense_size: int
+
+    def embed_passages(self, texts: Sequence[str]) -> list[Embedding]: ...
+
+    def embed_query(self, query: str) -> Embedding: ...
 
 
 class Embedder:

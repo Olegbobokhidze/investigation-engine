@@ -15,6 +15,7 @@ dependencies = [
     "python-docx>=1.2",
     "fastembed>=0.9",
     "qdrant-client>=1.20",
+    "python-multipart>=0.0.32",
 ]
 
 [dependency-groups]
@@ -24,6 +25,7 @@ dev = [
     "ruff>=0.6",
     "mypy>=1.11",
     "httpx2>=2.16.0",
+    "asyncpg-stubs>=0.32.0",
 ]
 
 [build-system]

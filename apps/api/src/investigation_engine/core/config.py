@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     env: Environment = "dev"
     log_level: LogLevel = "INFO"
 
+    # HTTP. Browser origins allowed to call the API; set as a JSON list in the environment.
+    cors_origins: list[str] = ["http://localhost:5173"]
+    max_upload_bytes: int = Field(default=10_000_000, gt=0)
+
     # Postgres: document records. A secret because the URL embeds the password.
     database_url: SecretStr = SecretStr(
         "postgresql://postgres:postgres@localhost:5440/investigation_engine"

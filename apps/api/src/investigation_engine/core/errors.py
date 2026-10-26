@@ -21,6 +21,22 @@ class NotFoundError(AppError):
     code = "not_found"
 
 
+class ForbiddenError(AppError):
+    status_code = 403
+    code = "forbidden"
+
+
+class DuplicateDocumentError(AppError):
+    """The content is already indexed as another document."""
+
+    status_code = 409
+    code = "duplicate_document"
+
+    def __init__(self, existing_document_id: str) -> None:
+        super().__init__(f"The same content is already indexed as {existing_document_id}.")
+        self.existing_document_id = existing_document_id
+
+
 class InvalidInputError(AppError):
     status_code = 422
     code = "invalid_input"
@@ -28,6 +44,11 @@ class InvalidInputError(AppError):
 
 class UnsupportedFormatError(InvalidInputError):
     code = "unsupported_format"
+
+
+class FileTooLargeError(InvalidInputError):
+    status_code = 413
+    code = "file_too_large"
 
 
 class UnreadableFileError(InvalidInputError):

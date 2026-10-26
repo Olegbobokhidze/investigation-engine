@@ -88,7 +88,7 @@ function indexFile(file: File): UploadResult {
   return { fileName: file.name, status: "indexed", document: corpusDocument };
 }
 
-export const handlers = [
+export const documentHandlers = [
   http.get(apiUrl("/documents"), async ({ request }) => {
     await delay(300);
     const params = new URL(request.url).searchParams;
@@ -148,7 +148,9 @@ export const handlers = [
     documents = documents.filter((candidate) => candidate.id !== corpusDocument.id);
     return new HttpResponse(null, { status: 204 });
   }),
+];
 
+export const investigationHandlers = [
   http.post(apiUrl("/investigations"), async ({ request }) => {
     await delay(1800);
     const { question } = (await request.json()) as CreateInvestigationRequest;
