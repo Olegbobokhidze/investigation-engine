@@ -1,5 +1,6 @@
 """Text clean-up applied to every document, whatever its format."""
 
+import hashlib
 import re
 import unicodedata
 
@@ -19,3 +20,9 @@ def normalize_text(text: str) -> str:
     lines = (_HORIZONTAL_SPACE.sub(" ", line).strip() for line in text.split("\n"))
     text = "\n".join(lines)
     return _EXTRA_BLANK_LINES.sub("\n\n", text).strip()
+
+
+def content_hash(normalized_text: str) -> str:
+    """SHA-256 of normalized text: identical content gives an identical hash, whatever the
+    file name, format or whitespace, so re-uploads are recognized as duplicates."""
+    return hashlib.sha256(normalized_text.encode("utf-8")).hexdigest()

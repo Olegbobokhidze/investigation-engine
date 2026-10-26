@@ -32,8 +32,9 @@ if (isInside(apiDir, filePath) && filePath.endsWith(".py")) {
   const ruff = ["--directory", apiDir, "run", "ruff"];
   commands = [
     ["uv", [...ruff, "format", "--quiet", filePath]],
-    // Fixes what ruff can (e.g. import order); anything left is reported by `make api-check`.
-    ["uv", [...ruff, "check", "--fix", "--exit-zero", "--quiet", filePath]],
+    // Only sorts imports (rule I). A full `--fix` would delete an import added one edit
+    // before the code that uses it; other issues are reported by `make api-check`.
+    ["uv", [...ruff, "check", "--select", "I", "--fix", "--exit-zero", "--quiet", filePath]],
   ];
 } else if (isInside(webDir, filePath) && /\.(ts|tsx|js|css|json|html|md)$/.test(filePath)) {
   commands = [

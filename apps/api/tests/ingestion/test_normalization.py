@@ -1,4 +1,4 @@
-from investigation_engine.ingestion.normalization import normalize_text
+from investigation_engine.ingestion.normalization import content_hash, normalize_text
 
 
 def test_normalize_text_collapses_spaces_and_keeps_paragraphs() -> None:
@@ -14,3 +14,11 @@ def test_normalize_text_unifies_unicode_forms() -> None:
     normalized = normalize_text("\ufb01le\u00a0name")
 
     assert normalized == "file name"
+
+
+def test_content_hash_is_the_same_for_the_same_normalized_text() -> None:
+    first = content_hash(normalize_text("Pool size  50 → 20.\r\n"))
+    second = content_hash(normalize_text("Pool size 50 → 20."))
+
+    assert first == second
+    assert first != content_hash(normalize_text("Pool size 50 → 25."))

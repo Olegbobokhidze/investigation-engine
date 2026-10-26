@@ -36,8 +36,10 @@ class Settings(BaseSettings):
     llm_timeout_s: float = Field(default=30.0, gt=0)
     llm_max_retries: int = Field(default=3, ge=0)
 
-    # Embeddings
+    # Embeddings. BGE models are trained with this instruction in front of search queries
+    # (not passages); fastembed doesn't add it, so we do.
     embedding_model: str = "BAAI/bge-small-en-v1.5"
+    embedding_query_prefix: str = "Represent this sentence for searching relevant passages: "
 
     # Chunking (sizes in words; overlap applies to the fixed strategy only)
     chunking_strategy: ChunkingStrategy = "structured"
