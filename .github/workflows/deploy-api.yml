@@ -56,10 +56,15 @@ jobs:
 
       - name: Set up SSH
         run: |
+          if [[ -z "${{ secrets.EC2_HOST }}" || -z "${{ secrets.EC2_SSH_KEY }}" ]]; then
+            echo "::error::Set the EC2_HOST and EC2_SSH_KEY repository secrets." && exit 1
+          fi
           install -d -m 0700 ~/.ssh
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
+          if ! ssh-keyscan -T 15 -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts; then
+            echo "::error::Can't reach port 22 on EC2_HOST: the security group must allow SSH from anywhere." && exit 1
+          fi
 
       # The host pulls with this job's short-lived token, then logs out.
       - name: Roll out on EC2
