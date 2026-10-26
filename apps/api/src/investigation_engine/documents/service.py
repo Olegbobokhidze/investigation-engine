@@ -79,6 +79,10 @@ class DocumentService:
             await self._session.rollback()
             existing_id = await self._find_id_by_hash(prepared.content_hash)
             raise DuplicateDocumentError(existing_id or "another document") from error
+        except Exception:
+            # Any other failed flush leaves the session unusable until it is rolled back.
+            await self._session.rollback()
+            raise
 
         await self._index_and_commit(document, prepared.chunks)
         log.info("document_uploaded", document_id=document.id, chunk_count=document.chunk_count)

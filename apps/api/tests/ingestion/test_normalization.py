@@ -9,6 +9,13 @@ def test_normalize_text_collapses_spaces_and_keeps_paragraphs() -> None:
     assert normalized == "Title\n\nFirst line here.\nSecond line."
 
 
+def test_normalize_text_removes_control_characters() -> None:
+    # Seen in a real PDF: NUL bytes in extracted text, which Postgres can't store.
+    normalized = normalize_text("The assistant\x00 answers\x07\n\tquickly.")
+
+    assert normalized == "The assistant answers\nquickly."
+
+
 def test_normalize_text_unifies_unicode_forms() -> None:
     # The "fi" ligature (U+FB01) and non-breaking spaces (U+00A0) are common in PDF output.
     normalized = normalize_text("\ufb01le\u00a0name")

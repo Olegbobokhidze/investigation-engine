@@ -1,5 +1,6 @@
 from typing import Annotated
 
+import structlog
 from fastapi import APIRouter, Query, Request, Response, UploadFile, status
 
 from investigation_engine.api.dependencies import DocumentServiceDependency
@@ -22,6 +23,7 @@ from investigation_engine.core.errors import (
 )
 
 router = APIRouter(prefix="/documents", tags=["documents"])
+log = structlog.get_logger()
 
 MAX_FILES_PER_UPLOAD = 20
 
@@ -83,6 +85,18 @@ async def upload_documents(
                 FailedUploadResult(
                     file_name=file_name,
                     error=ErrorDetail(code=error.code, message=error.message),
+                )
+            )
+        except Exception:
+            # An unexpected failure on one file must not fail the whole upload; the details
+            # go to the log, the user gets a generic message.
+            log.exception("document_upload_failed", file_name=file_name)
+            results.append(
+                FailedUploadResult(
+                    file_name=file_name,
+                    error=ErrorDetail(
+                        code="internal_error", message="Couldn't index this file. Please try again."
+                    ),
                 )
             )
     return UploadResponse(results=results)
