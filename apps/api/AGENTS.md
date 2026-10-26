@@ -14,7 +14,8 @@ src/investigation_engine/
 ├── retrieval/   embeddings, vector store, keyword search, fusion, reranking
 ├── llm/         LLM client (timeouts, retries), prompts
 └── investigation/  agentic RAG: planner, tools, verification, contradiction checks
-tests/           unit/ and integration/, mirroring src/
+tests/           mirrors src/ (tests/ingestion/test_loaders.py ↔ ingestion/loaders.py);
+                 binary samples in tests/fixtures/
 ```
 
 Dependencies point inward: `api` → services → adapters (Qdrant, Postgres, LLM). Services never

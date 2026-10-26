@@ -30,6 +30,18 @@ class UnsupportedFormatError(InvalidInputError):
     code = "unsupported_format"
 
 
+class UnreadableFileError(InvalidInputError):
+    """The file has a supported extension but its content can't be parsed."""
+
+    code = "unreadable_file"
+
+
+class EmptyDocumentError(InvalidInputError):
+    """The file parsed, but contains no text to index (e.g. a scanned PDF)."""
+
+    code = "empty_document"
+
+
 class UpstreamError(AppError):
     """An external dependency (LLM, vector store) failed after retries."""
 
