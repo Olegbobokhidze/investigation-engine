@@ -10,6 +10,8 @@ interface BadgeProps {
   size?: BadgeSize;
   /** Leading icon; when omitted, a status dot is shown instead (except for `accent`). */
   icon?: LucideIcon;
+  /** Spins the icon, for a status that is still in progress. */
+  isSpinning?: boolean;
   className?: string;
   children: ReactNode;
 }
@@ -27,7 +29,14 @@ const sizeClasses: Record<BadgeSize, { badge: string; icon: string }> = {
   md: { badge: "h-7 rounded-lg px-2.5 text-sm", icon: "size-4" },
 };
 
-export function Badge({ tone, size = "sm", icon: Icon, className, children }: BadgeProps) {
+export function Badge({
+  tone,
+  size = "sm",
+  icon: Icon,
+  isSpinning = false,
+  className,
+  children,
+}: BadgeProps) {
   const classes = toneClasses[tone];
 
   return (
@@ -40,7 +49,13 @@ export function Badge({ tone, size = "sm", icon: Icon, className, children }: Ba
       )}
     >
       {Icon ? (
-        <Icon aria-hidden className={sizeClasses[size].icon} />
+        <Icon
+          aria-hidden
+          className={clsx(
+            sizeClasses[size].icon,
+            isSpinning && "animate-spin motion-reduce:animate-none",
+          )}
+        />
       ) : (
         classes.dot !== null && (
           <span aria-hidden className={clsx("size-1.5 rounded-full", classes.dot)} />

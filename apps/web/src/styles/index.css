@@ -64,6 +64,17 @@
   --color-neutral-dot: #8a909c;
 
   --radius-control: 10px;
+
+  /* A bar segment sliding across its track: progress whose amount isn't known. */
+  --animate-indeterminate: indeterminate 1.4s ease-in-out infinite;
+  @keyframes indeterminate {
+    from {
+      translate: -100% 0;
+    }
+    to {
+      translate: 250% 0;
+    }
+  }
 }
 
 @utility focus-ring {

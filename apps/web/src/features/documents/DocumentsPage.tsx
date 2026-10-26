@@ -105,7 +105,7 @@ export function DocumentsPage() {
         onFilesSelected={(files) => {
           uploadMutation.mutate(files);
         }}
-        isUploading={uploadMutation.isPending}
+        uploadingFiles={uploadMutation.isPending ? uploadMutation.variables : []}
       >
         {uploadMutation.data && <UploadResultList results={uploadMutation.data.results} />}
       </UploadDropzone>
