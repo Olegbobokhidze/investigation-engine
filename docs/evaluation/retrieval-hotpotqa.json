@@ -1,0 +1,86 @@
+{
+  "questions": 200,
+  "candidates_per_retriever": 40,
+  "configs": [
+    {
+      "name": "dense",
+      "mode": "dense",
+      "rrf_k": 60,
+      "dense_weight": 1.0,
+      "sparse_weight": 1.0
+    },
+    {
+      "name": "sparse (BM25)",
+      "mode": "sparse",
+      "rrf_k": 60,
+      "dense_weight": 1.0,
+      "sparse_weight": 1.0
+    },
+    {
+      "name": "hybrid RRF k=60 (paper)",
+      "mode": "hybrid",
+      "rrf_k": 60,
+      "dense_weight": 1.0,
+      "sparse_weight": 1.0
+    },
+    {
+      "name": "hybrid RRF k=60, BM25 x0.5",
+      "mode": "hybrid",
+      "rrf_k": 60,
+      "dense_weight": 1.0,
+      "sparse_weight": 0.5
+    },
+    {
+      "name": "hybrid RRF k=10",
+      "mode": "hybrid",
+      "rrf_k": 10,
+      "dense_weight": 1.0,
+      "sparse_weight": 1.0
+    },
+    {
+      "name": "hybrid RRF k=10, BM25 x0.5",
+      "mode": "hybrid",
+      "rrf_k": 10,
+      "dense_weight": 1.0,
+      "sparse_weight": 0.5
+    }
+  ],
+  "results": {
+    "dense": {
+      "recall@2": 0.615,
+      "recall@5": 0.75,
+      "recall@10": 0.792,
+      "mrr": 0.868
+    },
+    "sparse (BM25)": {
+      "recall@2": 0.522,
+      "recall@5": 0.665,
+      "recall@10": 0.785,
+      "mrr": 0.825
+    },
+    "hybrid RRF k=60 (paper)": {
+      "recall@2": 0.598,
+      "recall@5": 0.77,
+      "recall@10": 0.855,
+      "mrr": 0.874
+    },
+    "hybrid RRF k=60, BM25 x0.5": {
+      "recall@2": 0.6,
+      "recall@5": 0.76,
+      "recall@10": 0.823,
+      "mrr": 0.862
+    },
+    "hybrid RRF k=10": {
+      "recall@2": 0.615,
+      "recall@5": 0.795,
+      "recall@10": 0.875,
+      "mrr": 0.88
+    },
+    "hybrid RRF k=10, BM25 x0.5": {
+      "recall@2": 0.605,
+      "recall@5": 0.777,
+      "recall@10": 0.823,
+      "mrr": 0.865
+    }
+  }
+}

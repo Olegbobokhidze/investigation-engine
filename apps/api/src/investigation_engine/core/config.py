@@ -46,9 +46,10 @@ class Settings(BaseSettings):
     embedding_query_prefix: str = "Represent this sentence for searching relevant passages: "
 
     # Hybrid search: candidates per retriever, then weighted RRF (see retrieval/fusion.py).
-    # Defaults are the RRF paper's; the evaluation tunes them.
+    # k=10 with equal weights beat the paper's k=60 and a down-weighted BM25 on every metric
+    # in the retrieval evaluation (docs/evaluation/retrieval-hotpotqa.md).
     search_candidates: int = Field(default=40, gt=0)
-    rrf_k: int = Field(default=60, ge=0)
+    rrf_k: int = Field(default=10, ge=0)
     rrf_dense_weight: float = Field(default=1.0, ge=0)
     rrf_sparse_weight: float = Field(default=1.0, ge=0)
 
