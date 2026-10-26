@@ -1,0 +1,68 @@
+name: Deploy API
+
+# Builds apps/api, pushes the image to GitHub Container Registry and rolls it out on the EC2
+# host after the API checks pass on main. Repository secrets: EC2_HOST (Elastic IP),
+# EC2_SSH_KEY (private key of the instance's key pair). The app's own secrets live only in
+# /opt/investigation-engine/.env on the host.
+on:
+  workflow_run:
+    workflows: [API]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency: deploy-api
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      HOST: ubuntu@${{ secrets.EC2_HOST }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Build and push the image
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/investigation-engine-api:$(git rev-parse --short HEAD)"
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker build -t "$image" apps/api
+          docker push "$image"
+          # sslip.io resolves 1-2-3-4.sslip.io to 1.2.3.4: a free hostname for the HTTPS certificate.
+          echo "API_IMAGE=$image" >> deploy.env
+          echo "API_DOMAIN=$(echo "${{ secrets.EC2_HOST }}" | tr . -).sslip.io" >> deploy.env
+
+      - name: Set up SSH
+        run: |
+          install -d -m 0700 ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
+
+      # The host pulls with this job's short-lived token, then logs out.
+      - name: Roll out on EC2
+        run: |
+          scp apps/api/deploy/compose.yaml deploy.env "$HOST:/opt/investigation-engine/"
+          echo "${{ secrets.GITHUB_TOKEN }}" \
+            | ssh "$HOST" docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          ssh "$HOST" 'set -e
+            cd /opt/investigation-engine
+            docker compose --env-file deploy.env pull --quiet
+            docker compose --env-file deploy.env up -d --remove-orphans
+            docker logout ghcr.io
+            docker image prune -af --filter "until=72h"'
+
+      - name: Check health
+        run: |
+          url="https://$(grep API_DOMAIN deploy.env | cut -d= -f2)/health"
+          for attempt in $(seq 1 30); do
+            curl -sf "$url" && exit 0
+            sleep 5
+          done
+          echo "API did not become healthy at $url" >&2
+          exit 1

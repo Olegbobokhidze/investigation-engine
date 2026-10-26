@@ -1,0 +1,27 @@
+# Production stack on the EC2 host, in /opt/investigation-engine next to its `.env`.
+# .github/workflows/deploy-api.yml copies this file there with `deploy.env` (API_IMAGE,
+# API_DOMAIN); run it by hand with `docker compose --env-file deploy.env …`.
+services:
+  api:
+    image: ${API_IMAGE}
+    # DATABASE_URL, QDRANT_*, LLM_API_KEY, CORS_ORIGINS: written once on the host (see
+    # README → Deployment), never stored in the repository or in GitHub.
+    env_file: .env
+    restart: unless-stopped
+
+  # Terminates HTTPS (Let's Encrypt certificate, renewed automatically) and forwards to the
+  # API, which is reachable only inside this compose network.
+  caddy:
+    image: caddy:2.10.2-alpine
+    command: caddy reverse-proxy --from ${API_DOMAIN} --to api:8080
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy-data:/data
+    restart: unless-stopped
+    depends_on:
+      - api
+
+volumes:
+  caddy-data:

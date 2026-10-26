@@ -57,6 +57,19 @@ make data-synthetic   # 11 Northwind Pay documents in PDF, DOCX, Markdown and TX
   contradictions and unanswerable questions, documented in
   [`docs/evaluation/northwind-ground-truth.md`](docs/evaluation/northwind-ground-truth.md).
 
+## Deployment
+
+| Part | Where | How |
+|---|---|---|
+| Web | Vercel | Builds `apps/web` on every push. `VITE_API_BASE_URL` and `VITE_API_MOCKING` are set in the Vercel project; a production build without either fails on purpose. |
+| API | AWS EC2 (t3.small), Stockholm | `.github/workflows/deploy-api.yml` builds `apps/api/Dockerfile`, pushes it to GitHub Container Registry and restarts `apps/api/deploy/compose.yaml` on the host over SSH, after the API checks pass on `main`. Caddy in front of the API serves HTTPS with a Let's Encrypt certificate for `<ip-with-dashes>.sslip.io`. |
+| Data | Neon (Postgres), Qdrant Cloud, both Frankfurt | Loaded with the `make data-*` targets above, pointed at the cloud services. |
+
+Secrets: the API's settings (`DATABASE_URL`, `QDRANT_URL`, `QDRANT_API_KEY`, `LLM_API_KEY`,
+`CORS_ORIGINS`) live only in `/opt/investigation-engine/.env` on the host (mode 600); GitHub
+holds only the host address and its SSH key. One-time host setup:
+`apps/api/deploy/bootstrap.sh`.
+
 ## Quality gates
 
 ```bash
