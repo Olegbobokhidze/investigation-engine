@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     env: Environment = "dev"
     log_level: LogLevel = "INFO"
 
+    # Postgres: document records. A secret because the URL embeds the password.
+    database_url: SecretStr = SecretStr(
+        "postgresql://postgres:postgres@localhost:5440/investigation_engine"
+    )
+
     # Vector store
     qdrant_url: str = "http://localhost:6333"
     qdrant_api_key: SecretStr | None = None

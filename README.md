@@ -20,9 +20,11 @@ a mocked API; the backend is being connected.
 ## Local development
 
 Requires [uv](https://docs.astral.sh/uv/) (it installs the pinned Python version itself),
-Node.js 22+ and pnpm.
+Node.js 22+, pnpm and Docker.
 
 ```bash
+make services-up    # local Postgres and Qdrant
+
 cp apps/api/.env.example apps/api/.env
 make api-install
 make api-dev        # http://localhost:8000/health

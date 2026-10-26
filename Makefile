@@ -4,10 +4,16 @@ API := uv --directory apps/api
 WEB := pnpm --dir apps/web
 
 .DEFAULT_GOAL := help
-.PHONY: help api-install api-dev api-format api-check web-install web-dev web-format web-check
+.PHONY: help services-up services-down api-install api-dev api-format api-check web-install web-dev web-format web-check
 
 help: ## List available targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
+
+services-up: ## Start local Postgres (:5440) and Qdrant (:6333), wait until healthy
+	docker compose up -d --wait
+
+services-down: ## Stop local services (data is kept in Docker volumes)
+	docker compose down
 
 api-install: ## Install backend dependencies
 	$(API) sync
