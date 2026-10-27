@@ -1,6 +1,7 @@
 # ADR-0007: An OpenAI-compatible client on Groq's free tier, with a fallback model
 
-**Status:** accepted · 2026-10-27
+**Status:** accepted · 2026-10-27; provider and model superseded by
+[ADR-0010](0010-azure-gpt-5-mini.md), the client design stands.
 
 ## Context
 

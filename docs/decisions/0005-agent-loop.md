@@ -25,15 +25,18 @@ compares against, with the same prompts, tools and verification.
 
 ## Alternatives considered
 
-- **Single-shot RAG:** cheaper (about half the tokens), measured as the baseline.
+- **Single-shot RAG:** about a third of the tokens and half the latency, measured as the baseline.
 - **An unbounded ReAct loop:** better on long chains, but cost and latency have no ceiling.
 - **A multi-agent setup** (planner, researcher, critic as separate agents): several times
   the tokens, which the free tier can't pay for.
 
 ## Evidence
 
-The answer evaluation in [`docs/evaluation-report.md`](../evaluation-report.md) (agent vs
-single-shot, section 6). Behaviour is pinned by `apps/api/tests/investigation/test_agent.py`.
+The answer evaluation in [`docs/evaluation-report.md`](../evaluation-report.md), section 6,
+48 questions: the agent is right on 0.79 against 0.65 for single-shot; HotpotQA multi-hop
+15/20 against 11/20; contradictions 0.83 against 0.33. It costs 3.5 LLM calls and 8.2k
+tokens per question against 1 and 3.0k. Single-shot is better on simple questions (0.88
+against 0.75). Behaviour is pinned by `apps/api/tests/investigation/test_agent.py`.
 
 ## Consequences
 

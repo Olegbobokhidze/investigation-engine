@@ -8,6 +8,7 @@ Two steps, so scoring never spends LLM quota again:
     run     asks every question with each configuration and appends one JSON line per
             answer; resumable: questions already in the file are skipped
     report  computes the metrics from those files and prints Markdown tables
+    compare scores the agent of two runs (e.g. two models) on their shared questions
 
 Run from apps/api against the loaded corpus:
     uv run python -m investigation_engine.evaluation.answers run --output-dir DIR
@@ -435,10 +436,32 @@ def report(output_dir: Path) -> str:
     return "\n".join(lines)
 
 
+def _model_name(records: list[dict[str, object]]) -> str:
+    models = _strings(records[0]["models"]) if records else []
+    return models[0] if models else "unknown"
+
+
+def compare_models(output_dir: Path, baseline_dir: Path) -> str:
+    """The agent of two runs (e.g. two models) on the questions both answered. Columns are
+    named after the model that answered, as the provider reported it."""
+    runs = {
+        _model_name(records): records
+        for records in (_read(baseline_dir / "agent.jsonl"), _read(output_dir / "agent.jsonl"))
+    }
+    shared = set.intersection(*({str(r["id"]) for r in records} for records in runs.values()))
+    scores = {
+        name: score([r for r in records if r["id"] in shared]) for name, records in runs.items()
+    }
+    return "\n".join(
+        [f"The agent on the {len(shared)} questions both runs answered:", "", *_table(scores)]
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["run", "report"])
+    parser.add_argument("command", choices=["run", "report", "compare"])
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--baseline-dir", type=Path, help="compare: the other run's directory")
     parser.add_argument(
         "--config", choices=list(CONFIGS), action="append", help="default: agent, single-shot"
     )
@@ -453,6 +476,10 @@ def main() -> None:
         arguments.output_dir.mkdir(parents=True, exist_ok=True)
         configs = arguments.config or ["agent", "single-shot"]
         asyncio.run(run(arguments.output_dir, configs, settings, arguments.northwind_only))
+    elif arguments.command == "compare":
+        if arguments.baseline_dir is None:
+            parser.error("compare needs --baseline-dir")
+        print(compare_models(arguments.output_dir, arguments.baseline_dir))
     else:
         print(report(arguments.output_dir))
 
