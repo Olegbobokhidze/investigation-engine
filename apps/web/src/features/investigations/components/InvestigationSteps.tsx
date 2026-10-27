@@ -18,7 +18,7 @@ export function InvestigationSteps({ steps }: InvestigationStepsProps) {
       <ol className="flex flex-col">
         {steps.map((step, index) => (
           // Steps are an append-only log, so the position is a stable key.
-          <li key={index} className="flex gap-3.5 py-2.5">
+          <li key={index} className="flex animate-enter gap-3.5 py-2.5 motion-reduce:animate-none">
             <span className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-success-soft text-success">
               <Check aria-hidden className="size-3.5" strokeWidth={2.25} />
             </span>
