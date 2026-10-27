@@ -74,27 +74,32 @@ class VectorStore:
         self.collection = collection
 
     async def ensure_collection(self, dense_size: int) -> None:
-        """Creates the collection and its payload index if they don't exist yet."""
+        """Creates the collection if it doesn't exist, and its payload indexes either way."""
         async with _upstream_errors():
-            if await self._client.collection_exists(self.collection):
-                return
-            await self._client.create_collection(
-                self.collection,
-                vectors_config={
-                    DENSE_VECTOR: models.VectorParams(
-                        size=dense_size, distance=models.Distance.COSINE
-                    )
-                },
-                # IDF modifier: Qdrant computes inverse document frequency over the whole
-                # collection, completing BM25 (fastembed supplies the term-frequency part).
-                sparse_vectors_config={
-                    SPARSE_VECTOR: models.SparseVectorParams(modifier=models.Modifier.IDF)
-                },
-            )
-            # Indexed so deleting a document's chunks doesn't scan every point.
+            if not await self._client.collection_exists(self.collection):
+                await self._create_collection(dense_size)
+            # Filters need these: Qdrant Cloud rejects filtering on a field without an index,
+            # and an index keeps a filter from scanning every point. Creating an existing
+            # index is a no-op, so collections made before an index was added get it too.
             await self._client.create_payload_index(
                 self.collection, "document_id", models.PayloadSchemaType.KEYWORD
             )
+            await self._client.create_payload_index(
+                self.collection, "chunk_index", models.PayloadSchemaType.INTEGER
+            )
+
+    async def _create_collection(self, dense_size: int) -> None:
+        await self._client.create_collection(
+            self.collection,
+            vectors_config={
+                DENSE_VECTOR: models.VectorParams(size=dense_size, distance=models.Distance.COSINE)
+            },
+            # IDF modifier: Qdrant computes inverse document frequency over the whole
+            # collection, completing BM25 (fastembed supplies the term-frequency part).
+            sparse_vectors_config={
+                SPARSE_VECTOR: models.SparseVectorParams(modifier=models.Modifier.IDF)
+            },
+        )
 
     async def upsert(self, records: Sequence[ChunkRecord], embeddings: Sequence[Embedding]) -> None:
         points = [

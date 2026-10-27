@@ -188,3 +188,15 @@ async def test_investigate_opens_a_document_the_model_asks_for() -> None:
 
     assert "Opened a document" in [step.title for step in result.steps]
     assert result.sources[0].document_id == "changelog"
+
+
+async def test_investigate_without_planning_is_one_search_and_one_answer() -> None:
+    llm = ScriptedLlm(_answer("CHG-2291 [1]."))
+    corpus = FakeCorpus({"Why INC-0412?": [INCIDENT]})
+    investigator = Investigator(llm, corpus, max_turns=1, search_limit=5, plan=False)
+
+    result = await investigator.investigate("Why INC-0412?")
+
+    assert corpus.queries == ["Why INC-0412?"]
+    assert result.usage.llm_calls == 1
+    assert result.status == "answered"

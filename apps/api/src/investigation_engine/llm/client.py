@@ -31,8 +31,10 @@ _RETRYABLE_STATUSES = frozenset({408, 429, 498, 500, 502, 503, 504})
 # model samples again on retry, so it usually succeeds.
 _RETRYABLE_ERROR_CODES = frozenset({"tool_use_failed"})
 _BACKOFF_BASE_S = 1.0
-# A rate limit that lasts longer than this (e.g. a daily quota) won't pass by waiting:
-# move on to the fallback model instead.
+# Doubling stops here: with many retries, waits would otherwise grow to minutes.
+_MAX_BACKOFF_S = 20.0
+# By default a rate limit that lasts longer than this (e.g. a daily quota) isn't waited
+# out: a user is waiting, so the fallback model answers instead.
 _MAX_RETRY_AFTER_S = 30.0
 
 
@@ -42,6 +44,9 @@ class ToolCall:
     name: str
     # JSON text exactly as the model wrote it; the tool's argument model validates it.
     arguments: str
+    # Provider data that must come back unchanged with the call, e.g. Gemini's thought
+    # signature, without which it rejects the next request.
+    extra_content: Mapping[str, object] | None = None
 
 
 @dataclass(frozen=True)
@@ -77,15 +82,19 @@ def assistant_message(completion: Completion) -> Message:
     """The model's turn, replayed in the history so its tool calls match their results."""
     message: dict[str, object] = {"role": "assistant", "content": completion.content or ""}
     if completion.tool_calls:
-        message["tool_calls"] = [
-            {
-                "id": call.id,
-                "type": "function",
-                "function": {"name": call.name, "arguments": call.arguments},
-            }
-            for call in completion.tool_calls
-        ]
+        message["tool_calls"] = [_tool_call_json(call) for call in completion.tool_calls]
     return message
+
+
+def _tool_call_json(call: ToolCall) -> dict[str, object]:
+    json: dict[str, object] = {
+        "id": call.id,
+        "type": "function",
+        "function": {"name": call.name, "arguments": call.arguments},
+    }
+    if call.extra_content:
+        json["extra_content"] = call.extra_content
+    return json
 
 
 def tool_message(call_id: str, content: str) -> Message:
@@ -105,6 +114,7 @@ class _FunctionCall(BaseModel):
 class _ToolCallPayload(BaseModel):
     id: str
     function: _FunctionCall
+    extra_content: dict[str, object] | None = None
 
 
 class _MessagePayload(BaseModel):
@@ -149,6 +159,7 @@ class LlmClient:
         models: Sequence[str],
         timeout_s: float,
         max_retries: int,
+        max_retry_after_s: float = _MAX_RETRY_AFTER_S,
         transport: httpx.AsyncBaseTransport | None = None,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     ) -> None:
@@ -157,6 +168,7 @@ class LlmClient:
             raise ValueError("At least one model is required.")
         self._models = list(models)
         self._max_retries = max_retries
+        self._max_retry_after_s = max_retry_after_s
         self._sleep = sleep
         self._http = httpx.AsyncClient(
             base_url=base_url,
@@ -203,13 +215,14 @@ class LlmClient:
                     raise _ModelFailedError(f"HTTP {response.status_code}: {response.text[:200]}")
                 reason = f"HTTP {response.status_code}: {response.text[:200]}"
                 retry_after = _retry_after_seconds(response)
-                if retry_after is not None and retry_after > _MAX_RETRY_AFTER_S:
+                if retry_after is not None and retry_after > self._max_retry_after_s:
                     raise _ModelFailedError(f"rate limited for {retry_after:.0f} s")
 
             if attempt == self._max_retries:
                 raise _ModelFailedError(f"{reason} after {attempt + 1} attempts")
             # Jitter spreads retries out, so parallel requests don't all retry at once.
-            delay = retry_after or _BACKOFF_BASE_S * 2**attempt * random.uniform(0.5, 1.5)
+            backoff = min(_BACKOFF_BASE_S * 2**attempt, _MAX_BACKOFF_S)
+            delay = retry_after or backoff * random.uniform(0.5, 1.5)
             log.info("llm_retry", model=model, attempt=attempt + 1, reason=reason, delay_s=delay)
             await self._sleep(delay)
         raise AssertionError("unreachable")  # the loop always returns or raises
@@ -218,11 +231,20 @@ class LlmClient:
 def _is_retryable(response: httpx.Response) -> bool:
     if response.status_code in _RETRYABLE_STATUSES:
         return True
+    return _error_code(response) in _RETRYABLE_ERROR_CODES
+
+
+def _error_code(response: httpx.Response) -> object:
+    """The error's `code`, if the body has one. Providers differ: Groq sends
+    {"error": {...}}, Gemini a list holding that object."""
     try:
-        code = response.json().get("error", {}).get("code")
+        body = response.json()
     except ValueError:
-        return False
-    return code in _RETRYABLE_ERROR_CODES
+        return None
+    if isinstance(body, list):
+        body = body[0] if body else None
+    error = body.get("error") if isinstance(body, dict) else None
+    return error.get("code") if isinstance(error, dict) else None
 
 
 def _retry_after_seconds(response: httpx.Response) -> float | None:
@@ -243,7 +265,12 @@ def _parse_completion(response: httpx.Response, model: str) -> Completion:
     return Completion(
         content=message.content,
         tool_calls=[
-            ToolCall(id=call.id, name=call.function.name, arguments=call.function.arguments)
+            ToolCall(
+                id=call.id,
+                name=call.function.name,
+                arguments=call.function.arguments,
+                extra_content=call.extra_content,
+            )
             for call in message.tool_calls or []
         ],
         model=model,

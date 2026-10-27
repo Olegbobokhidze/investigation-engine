@@ -19,6 +19,8 @@ Rules for submit_answer:
 - Use only facts stated in the passages, never outside knowledge, even if you know it.
 - Every sentence of the answer ends with the passage numbers it relies on, in square \
 brackets, like "The pool was cut to 20 connections [3]." Cite only numbers you were shown.
+- In a multi-step answer, cite the passage behind every step, including the link between \
+them: "The report was written by Ana Ruiz [2], who later led the Payments team [5]."
 - Start with the direct answer in one sentence, then only the supporting detail that \
 matters, in at most 3 short paragraphs.
 - Compare passages that cover the same fact (dates, times, numbers, names, causes). If \

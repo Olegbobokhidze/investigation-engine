@@ -1,11 +1,12 @@
 import json
 from collections.abc import Callable
+from typing import cast
 
 import httpx
 import pytest
 
 from investigation_engine.core.errors import UpstreamError
-from investigation_engine.llm.client import LlmClient, user_message
+from investigation_engine.llm.client import LlmClient, assistant_message, user_message
 
 type Handler = Callable[[httpx.Request], httpx.Response]
 
@@ -144,3 +145,55 @@ async def test_complete_raises_upstream_error_when_every_model_fails() -> None:
         await _client(api, [], models=("main", "fallback")).complete([user_message("Hi")])
 
     assert api.models == ["main"] * 3 + ["fallback"] * 3
+
+
+async def test_complete_caps_the_backoff_between_retries() -> None:
+    api = FakeApi(*[httpx.ReadTimeout("slow")] * 8, _ok())
+    sleeps: list[float] = []
+    client = LlmClient(
+        base_url="https://llm.test/v1",
+        api_key="test-key",
+        models=["main"],
+        timeout_s=5,
+        max_retries=8,
+        transport=httpx.MockTransport(api),
+        sleep=lambda seconds: _record(sleeps, seconds),
+    )
+
+    await client.complete([user_message("Hi")])
+
+    assert max(sleeps) <= 30.0  # 20 s cap plus 50% jitter
+
+
+async def _record(sleeps: list[float], seconds: float) -> None:
+    sleeps.append(seconds)
+
+
+async def test_complete_handles_an_error_body_that_is_a_list() -> None:
+    api = FakeApi(httpx.Response(400, json=[{"error": {"code": 400, "message": "Bad"}}]), _ok())
+
+    completion = await _client(api, [], models=("main", "fallback")).complete([user_message("Hi")])
+
+    assert completion.model == "fallback"
+
+
+async def test_assistant_message_returns_the_providers_extra_content() -> None:
+    signature = {"google": {"thought_signature": "abc"}}
+    api = FakeApi(
+        _ok(
+            tool_calls=[
+                {
+                    "id": "call_1",
+                    "type": "function",
+                    "function": {"name": "search_documents", "arguments": "{}"},
+                    "extra_content": signature,
+                }
+            ]
+        )
+    )
+
+    completion = await _client(api, []).complete([user_message("Hi")])
+    message = assistant_message(completion)
+
+    tool_calls = cast(list[dict[str, object]], message["tool_calls"])
+    assert tool_calls[0]["extra_content"] == signature

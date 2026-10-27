@@ -111,16 +111,25 @@ class _Run:
 
 class Investigator:
     def __init__(
-        self, llm: ChatModel, corpus: Corpus, *, max_turns: int, search_limit: int
+        self,
+        llm: ChatModel,
+        corpus: Corpus,
+        *,
+        max_turns: int,
+        search_limit: int,
+        plan: bool = True,
     ) -> None:
+        """`plan=False, max_turns=1` is single-shot RAG (one search, one answer): the
+        baseline the evaluation compares the agent with."""
         self._llm = llm
         self._corpus = corpus
         self._max_turns = max_turns
         self._search_limit = search_limit
+        self._should_plan = plan
 
     async def investigate(self, question: str) -> Investigation:
         run = _Run(question)
-        sub_questions = await self._plan(run)
+        sub_questions = await self._plan(run) if self._should_plan else [question]
         results = await asyncio.gather(*(self._search(run, query) for query in sub_questions))
         seed_passages = [passage for new_passages in results for passage in new_passages]
         answer = await self._answer(run, sub_questions, seed_passages)
@@ -151,7 +160,7 @@ class Investigator:
             Step(
                 title="Planned the investigation",
                 detail=" · ".join(sub_questions),
-                result=f"{len(sub_questions)} sub-question{'s' if len(sub_questions) > 1 else ''}",
+                result=_count(len(sub_questions), "sub-question"),
             )
         )
         return sub_questions
@@ -163,7 +172,7 @@ class Investigator:
             Step(
                 title="Searched documents",
                 detail=f'search_documents(query="{query}")',
-                result=f"{len(hits)} results, {len(new_passages)} new",
+                result=f"{_count(len(hits), 'result')}, {len(new_passages)} new",
             )
         )
         return new_passages
@@ -234,7 +243,7 @@ class Investigator:
                     Step(
                         title="Opened a document",
                         detail=f'get_document(document_id="{document_id}")',
-                        result=f"{len(records)} passages",
+                        result=_count(len(records), "passage"),
                     )
                 )
                 return self._describe(new_passages, seen)
@@ -263,9 +272,9 @@ class Investigator:
             Step(
                 title="Verified claims against sources",
                 detail=(
-                    f"{len(checked.cited_passages)} sources cited · "
-                    f"{checked.removed_citations} invalid citations removed · "
-                    f"{len(checked.conflicts)} conflicts"
+                    f"{_count(len(checked.cited_passages), 'source')} cited · "
+                    f"{_count(checked.removed_citations, 'invalid citation')} removed · "
+                    f"{_count(len(checked.conflicts), 'conflict')}"
                 ),
                 result="answered" if checked.status == "answered" else "abstained",
             )
@@ -295,3 +304,8 @@ class Investigator:
             usage=Usage(llm_calls=run.llm_calls, total_tokens=run.total_tokens, models=run.models),
             retrieved_document_ids=run.evidence.document_ids,
         )
+
+
+def _count(number: int, noun: str) -> str:
+    """'1 source', '2 sources': step texts are shown to users as they are."""
+    return f"{number} {noun}{'' if number == 1 else 's'}"
