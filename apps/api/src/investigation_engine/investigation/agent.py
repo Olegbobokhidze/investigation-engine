@@ -5,11 +5,16 @@
 3. Tool-calling loop: the model reads the numbered passages and either searches again
    (often with a name it just learned, which is how multi-hop questions get their second
    hop), opens a document, or submits an answer that cites passages as [n]. The last turn
-   forces an answer, so a question costs at most `max_turns` + 1 LLM calls.
-4. Verify: citations must point at passages the model was given (`citations.py`).
+   forces an answer, so a question costs at most `max_turns` + 1 LLM calls (+1 with the
+   cross-check).
+4. Cross-check (optional): search once more with the answer's own claim and make the
+   model compare it with every passage, so a second source that disagrees is reported
+   rather than ignored.
+5. Verify: citations must point at passages the model was given (`citations.py`).
 """
 
 import asyncio
+import re
 import uuid
 from dataclasses import dataclass, field
 from typing import Literal, Protocol
@@ -118,14 +123,17 @@ class Investigator:
         max_turns: int,
         search_limit: int,
         plan: bool = True,
+        cross_check: bool = False,
     ) -> None:
         """`plan=False, max_turns=1` is single-shot RAG (one search, one answer): the
-        baseline the evaluation compares the agent with."""
+        baseline the evaluation compares the agent with. `cross_check` costs one more
+        search and LLM call per answered question."""
         self._llm = llm
         self._corpus = corpus
         self._max_turns = max_turns
         self._search_limit = search_limit
         self._should_plan = plan
+        self._should_cross_check = cross_check
 
     async def investigate(self, question: str) -> Investigation:
         run = _Run(question)
@@ -206,13 +214,18 @@ class Investigator:
                     except ValidationError as error:
                         result = f"Invalid arguments: {error.errors()[0]['msg']}. Try again."
                     else:
-                        # An uncited answer would be discarded as ungrounded, so while turns
-                        # are left, the model gets one chance to add its citations.
-                        if (
-                            is_last_turn
-                            or answer.status != "answered"
-                            or has_citation(answer.answer)
-                        ):
+                        if answer.status != "answered":
+                            return answer
+                        if has_citation(answer.answer):
+                            if not self._should_cross_check:
+                                return answer
+                            later_calls = completion.tool_calls[
+                                completion.tool_calls.index(call) + 1 :
+                            ]
+                            return await self._cross_check(run, messages, call, later_calls, answer)
+                        # An uncited answer would be discarded as ungrounded, so while
+                        # turns are left, the model is asked to add its citations.
+                        if is_last_turn:
                             return answer
                         run.steps.append(
                             Step(
@@ -229,6 +242,45 @@ class Investigator:
                 # Every tool call needs its result before the model's next turn.
                 messages.append(tool_message(call.id, result))
         return None
+
+    async def _cross_check(
+        self,
+        run: _Run,
+        messages: list[Message],
+        call: ToolCall,
+        later_calls: list[ToolCall],
+        answer: AnswerArguments,
+    ) -> AnswerArguments:
+        """Searches with the answer's direct claim, then forces the model to resubmit after
+        comparing it with every passage. Keeps the first answer if the second is unusable.
+
+        `later_calls` are tool calls the model made after submitting, in the same turn:
+        each still needs a result before the next LLM call."""
+        claim = _first_sentence(answer.answer)
+        hits = await self._corpus.search(claim, self._search_limit)
+        new_passages, seen = run.evidence.add([hit.record for hit in hits])
+        run.steps.append(
+            Step(
+                title="Cross-checked the answer",
+                detail=f'search_documents(query="{claim}")',
+                result=f"{_count(len(hits), 'result')}, {len(new_passages)} new",
+            )
+        )
+        messages.append(tool_message(call.id, self._describe(new_passages, seen)))
+        messages.extend(
+            tool_message(later.id, "Skipped: an answer was submitted.") for later in later_calls
+        )
+        messages.append(user_message(prompts.CROSS_CHECK))
+        completion = await self._llm.complete(
+            messages, tools=[ANSWER_TOOL.spec()], force_tool=ANSWER_TOOL.name
+        )
+        run.record(completion)
+        try:
+            checked = ANSWER_TOOL.parse(completion.tool_calls[0])
+        except (IndexError, ValidationError):
+            return answer
+        is_usable = checked.status == "answered" and has_citation(checked.answer)
+        return checked if is_usable else answer
 
     async def _run_tool(self, run: _Run, call: ToolCall) -> str:
         try:
@@ -304,6 +356,12 @@ class Investigator:
             usage=Usage(llm_calls=run.llm_calls, total_tokens=run.total_tokens, models=run.models),
             retrieved_document_ids=run.evidence.document_ids,
         )
+
+
+def _first_sentence(answer: str) -> str:
+    """The direct answer (the prompt puts it first), without its [n] citations."""
+    sentence = re.split(r"(?<=[.!?])\s", answer.strip(), maxsplit=1)[0]
+    return re.sub(r"\s*\[\d+\]", "", sentence)
 
 
 def _count(number: int, noun: str) -> str:

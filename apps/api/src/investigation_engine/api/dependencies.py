@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from investigation_engine.core.config import Settings
 from investigation_engine.core.database import Database
 from investigation_engine.core.errors import NotConfiguredError
+from investigation_engine.core.rate_limit import DailyQuota
 from investigation_engine.documents.service import DocumentService
 from investigation_engine.ingestion.chunking import chunker_from_settings
 from investigation_engine.investigation.agent import Investigator
@@ -53,7 +54,18 @@ def get_investigator(request: Request) -> Investigator:
         retriever,
         max_turns=settings.agent_max_turns,
         search_limit=settings.agent_search_limit,
+        cross_check=settings.agent_cross_check,
     )
 
 
 InvestigatorDependency = Annotated[Investigator, Depends(get_investigator)]
+
+
+def take_investigation_quota(request: Request) -> None:
+    """Counts the investigation against the caller's daily cap, or answers 429."""
+    quota: DailyQuota = request.app.state.investigation_quota
+    # Behind Caddy this is the visitor's address: uvicorn reads it from X-Forwarded-For.
+    quota.take(request.client.host if request.client else "unknown")
+
+
+InvestigationQuotaDependency = Annotated[None, Depends(take_investigation_quota)]

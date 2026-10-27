@@ -63,6 +63,11 @@ class EmptyDocumentError(InvalidInputError):
     code = "empty_document"
 
 
+class RateLimitedError(AppError):
+    status_code = 429
+    code = "rate_limited"
+
+
 class NotConfiguredError(AppError):
     """A feature needs a setting that isn't set (e.g. the LLM API key in local dev)."""
 

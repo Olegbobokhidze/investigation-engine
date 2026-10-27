@@ -1,6 +1,10 @@
+from typing import cast
+
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from investigation_engine.core.rate_limit import DailyQuota
 from tests.conftest import ScriptedLlm, tool_call
 
 pytestmark = pytest.mark.integration
@@ -45,6 +49,17 @@ def test_create_investigation_rejects_a_blank_question(client: TestClient) -> No
 
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "invalid_input"
+
+
+def test_create_investigation_over_the_daily_cap_is_rate_limited(client: TestClient) -> None:
+    app = cast(FastAPI, client.app)
+    app.state.investigation_quota = DailyQuota(per_client=1, total=10)
+    client.post("/investigations", json={"question": "How big is the pool?"})
+
+    response = client.post("/investigations", json={"question": "How big is the pool?"})
+
+    assert response.status_code == 429
+    assert response.json()["error"]["code"] == "rate_limited"
 
 
 # Overrides the module's `llm` fixture: the app starts without an LLM.

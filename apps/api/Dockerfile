@@ -1,4 +1,4 @@
-# Production image for the API, deployed to Google Cloud Run (see
+# Production image for the API, deployed to an EC2 host behind Caddy (see
 # .github/workflows/deploy-api.yml). Build locally: docker build -t investigation-engine-api .
 FROM python:3.12.13-slim-bookworm
 COPY --from=ghcr.io/astral-sh/uv:0.13.5 /uv /usr/local/bin/uv
@@ -26,6 +26,7 @@ RUN python -c "from investigation_engine.core.config import Settings; \
 from investigation_engine.retrieval.embeddings import Embedder; \
 settings = Settings(); Embedder(settings.embedding_model, settings.embedding_query_prefix)"
 
-# Cloud Run sends traffic to port 8080.
 EXPOSE 8080
-CMD ["uvicorn", "--factory", "investigation_engine.main:create_app", "--host", "0.0.0.0", "--port", "8080"]
+# Only Caddy can reach this port (apps/api/deploy/compose.yaml), so trusting its
+# X-Forwarded-For header is safe; the per-client rate limit needs the visitor's address.
+CMD ["uvicorn", "--factory", "investigation_engine.main:create_app", "--host", "0.0.0.0", "--port", "8080", "--proxy-headers", "--forwarded-allow-ips", "*"]

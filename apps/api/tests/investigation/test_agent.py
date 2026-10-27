@@ -200,3 +200,37 @@ async def test_investigate_without_planning_is_one_search_and_one_answer() -> No
     assert corpus.queries == ["Why INC-0412?"]
     assert result.usage.llm_calls == 1
     assert result.status == "answered"
+
+
+async def test_investigate_cross_check_searches_with_the_answer_and_lets_the_model_revise() -> None:
+    llm = ScriptedLlm(
+        _plan("deploy time"),
+        _answer("CHG-2291 was deployed at 09:05 [1]. It caused INC-0412 [1]."),
+        _answer(
+            "The sources disagree: 09:05 [1] or 09:40 [2].",
+            conflicts=["The incident says 09:05 [1]; the change log says 09:40 [2]."],
+        ),
+    )
+    corpus = FakeCorpus({"deploy time": [INCIDENT], "CHG-2291 was deployed at 09:05.": [CHANGELOG]})
+    investigator = Investigator(llm, corpus, max_turns=3, search_limit=5, cross_check=True)
+
+    result = await investigator.investigate("When was CHG-2291 deployed?")
+
+    assert corpus.queries[-1] == "CHG-2291 was deployed at 09:05."
+    assert "CHG-2291 deployed at 09:40." in str(llm.calls[2]["messages"])  # the new passage
+    assert llm.calls[2]["force"] == "submit_answer"
+    assert result.answer == "The sources disagree: 09:05 [1] or 09:40 [2]."
+    assert len(result.conflicts) == 1
+    assert "Cross-checked the answer" in [step.title for step in result.steps]
+
+
+async def test_investigate_cross_check_keeps_the_first_answer_when_the_revision_is_uncited() -> (
+    None
+):
+    llm = ScriptedLlm(_plan("deploy time"), _answer("At 09:05 [1]."), _answer("At 09:05."))
+    corpus = FakeCorpus({"deploy time": [INCIDENT]})
+    investigator = Investigator(llm, corpus, max_turns=3, search_limit=5, cross_check=True)
+
+    result = await investigator.investigate("When was CHG-2291 deployed?")
+
+    assert result.answer == "At 09:05 [1]."

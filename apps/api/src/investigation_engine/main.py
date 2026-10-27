@@ -19,6 +19,7 @@ from investigation_engine.core.config import Settings, get_settings
 from investigation_engine.core.database import Database
 from investigation_engine.core.errors import AppError
 from investigation_engine.core.logging import configure_logging
+from investigation_engine.core.rate_limit import DailyQuota
 from investigation_engine.llm.client import ChatModel, LlmClient
 from investigation_engine.retrieval.embeddings import Embedder, TextEmbedder
 from investigation_engine.retrieval.search import FusionSettings, Retriever
@@ -56,6 +57,10 @@ def create_app(
             text_embedder, vector_store, FusionSettings.from_settings(settings)
         )
         app.state.llm = llm or llm_client
+        app.state.investigation_quota = DailyQuota(
+            per_client=settings.investigations_per_client_per_day,
+            total=settings.investigations_per_day,
+        )
         yield
         if llm_client:
             await llm_client.close()

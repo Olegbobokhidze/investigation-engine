@@ -43,10 +43,23 @@ class Settings(BaseSettings):
     llm_timeout_s: float = Field(default=60.0, gt=0)
     llm_max_retries: int = Field(default=3, ge=0)
 
+    # Evaluation judge: a model from another family than the agent's, possibly on another
+    # provider. The key falls back to LLM_API_KEY when both use the same provider.
+    judge_base_url: str = "https://api.groq.com/openai/v1"
+    judge_model: str = "qwen/qwen3.8-27b"
+    judge_api_key: SecretStr | None = None
+
     # Investigation agent: the most LLM turns (search or answer) before it must answer, and
     # how many passages one search returns. Both bound the tokens a question costs.
     agent_max_turns: int = Field(default=4, gt=0)
     agent_search_limit: int = Field(default=6, gt=0)
+    # One more search and LLM call per answer, to catch sources that disagree with it.
+    agent_cross_check: bool = False
+
+    # Daily investigation caps (UTC days), per client IP and in total: the free LLM tier
+    # allows roughly 50 investigations a day, and the demo must not run dry.
+    investigations_per_client_per_day: int = Field(default=20, gt=0)
+    investigations_per_day: int = Field(default=40, gt=0)
 
     # Embeddings. BGE models are trained with this instruction in front of search queries
     # (not passages); fastembed doesn't add it, so we do.

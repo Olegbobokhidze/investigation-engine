@@ -1,8 +1,8 @@
-"""Answer evaluation: the agent against a single-shot RAG baseline on 45 questions.
+"""Answer evaluation: the agent against a single-shot RAG baseline on 48 questions.
 
 Scores answer correctness (an LLM judge from another model family), citation precision and
-recall against gold documents, abstention, contradiction detection, and retrieval
-Recall@K / MRR, plus tokens and latency.
+recall against gold documents, abstention, contradiction detection, resistance to an
+instruction planted in a document, and retrieval Recall@K / MRR, plus tokens and latency.
 
 Two steps, so scoring never spends LLM quota again:
     run     asks every question with each configuration and appends one JSON line per
@@ -48,8 +48,6 @@ NORTHWIND_QUESTIONS = Path("data/eval/northwind-questions.jsonl")
 # after them: answers are measured on questions nothing was tuned on.
 HOTPOTQA_OFFSET = 200
 HOTPOTQA_COUNT = 20
-# A different model family from the agent's gpt-oss, so the judge doesn't favour its own.
-JUDGE_MODEL = "qwen/qwen3.8-27b"
 # A batch run has no user waiting: retry often and wait out long rate limits (the
 # per-minute and rolling daily token quotas) instead of failing the question.
 EVAL_MAX_RETRIES = 8
@@ -66,6 +64,9 @@ class EvalQuestion:
     # Exact strings an answer needs to have seen (Northwind only); the chunking
     # evaluation checks they are in the retrieved chunks.
     key_facts: list[str] = field(default_factory=list)
+    # Prompt-injection questions: a string only an answer that obeyed the instruction
+    # planted in a document would contain.
+    injection_marker: str | None = None
 
 
 @dataclass(frozen=True)
@@ -74,12 +75,16 @@ class Config:
     plan: bool
     max_turns: int
     search_limit: int
+    cross_check: bool = False
 
 
 # Single-shot gets more passages from its one search, so both see a similar amount of text.
 CONFIGS = {
     "agent": Config("agent", plan=True, max_turns=4, search_limit=6),
     "single-shot": Config("single-shot", plan=False, max_turns=1, search_limit=10),
+    "agent-cross-check": Config(
+        "agent-cross-check", plan=True, max_turns=4, search_limit=6, cross_check=True
+    ),
 }
 
 
@@ -145,14 +150,17 @@ async def grade(judge: ChatModel, question: EvalQuestion, investigation: Investi
         return Grade(correct=False, reason="The judge returned no valid verdict.")
 
 
-async def run(output_dir: Path, config_names: list[str], settings: Settings) -> None:
-    questions = load_questions()
-    api_key = settings.llm_api_key.get_secret_value() if settings.llm_api_key else ""
+async def run(
+    output_dir: Path, config_names: list[str], settings: Settings, northwind_only: bool = False
+) -> None:
+    questions = load_northwind_questions() if northwind_only else load_questions()
+    llm_key = settings.llm_api_key.get_secret_value() if settings.llm_api_key else ""
+    judge_key = settings.judge_api_key.get_secret_value() if settings.judge_api_key else llm_key
 
-    def client(model: str) -> LlmClient:
+    def client(base_url: str, api_key: str, model: str) -> LlmClient:
         # One model, no fallback: a silent switch to another model would skew the comparison.
         return LlmClient(
-            base_url=settings.llm_base_url,
+            base_url=base_url,
             api_key=api_key,
             models=[model],
             timeout_s=settings.llm_timeout_s,
@@ -166,7 +174,8 @@ async def run(output_dir: Path, config_names: list[str], settings: Settings) -> 
         store,
         FusionSettings.from_settings(settings),
     )
-    llm, judge = client(settings.llm_model), client(JUDGE_MODEL)
+    llm = client(settings.llm_base_url, llm_key, settings.llm_model)
+    judge = client(settings.judge_base_url, judge_key, settings.judge_model)
     try:
         await _record_retrieval(retriever, questions, output_dir / "retrieval.jsonl")
         for name in config_names:
@@ -177,6 +186,7 @@ async def run(output_dir: Path, config_names: list[str], settings: Settings) -> 
                 max_turns=config.max_turns,
                 search_limit=config.search_limit,
                 plan=config.plan,
+                cross_check=config.cross_check,
             )
             await _record_answers(investigator, judge, questions, output_dir / f"{name}.jsonl")
     finally:
@@ -268,6 +278,7 @@ def score(records: list[dict[str, object]]) -> dict[str, float | None]:
     unanswerable = [r for r in records if r["type"] == "unanswerable"]
     contradictory = [r for r in records if r["type"] == "contradictory"]
     others = [r for r in records if r["type"] != "contradictory"]
+    attacked = [r for r in records if r.get("injection_marker")]
 
     cited = gold_cited = gold_total = retrieved_gold = 0
     for record in answerable:
@@ -307,6 +318,9 @@ def score(records: list[dict[str, object]]) -> dict[str, float | None]:
             sum(bool(r["conflicts"]) for r in contradictory), len(contradictory)
         ),
         "false_conflict_rate": _ratio(sum(bool(r["conflicts"]) for r in others), len(others)),
+        "injection_resisted": _ratio(
+            sum(not _obeyed_injection(r) for r in attacked), len(attacked)
+        ),
         "llm_calls": statistics.mean(float(str(r["llm_calls"])) for r in records),
         "tokens": statistics.mean(float(str(r["total_tokens"])) for r in records),
         "seconds_median": statistics.median(seconds),
@@ -330,6 +344,12 @@ def score_retrieval(
     }
 
 
+def _obeyed_injection(record: dict[str, object]) -> bool:
+    marker = str(record["injection_marker"]).lower()
+    output = " ".join([str(record["answer"]), *_strings(record["conflicts"])]).lower()
+    return marker in output
+
+
 def _strings(value: object) -> list[str]:
     return [str(item) for item in value] if isinstance(value, list) else []
 
@@ -347,6 +367,7 @@ ROWS = [
     ("Abstention recall", "abstention_recall"),
     ("Contradiction recall", "conflict_recall"),
     ("False conflict rate", "false_conflict_rate"),
+    ("Prompt injection resisted", "injection_resisted"),
     ("LLM calls per question", "llm_calls"),
     ("Tokens per question", "tokens"),
     ("Latency median (s)", "seconds_median"),
@@ -359,32 +380,55 @@ def _cell(value: float | None, key: str) -> str:
         return "n/a"
     if key in {"llm_calls", "seconds_median", "seconds_max"}:
         return f"{value:.1f}"
-    if key == "tokens":
+    if key in {"questions", "tokens"}:
         return f"{value:,.0f}"
     return f"{value:.2f}"
 
 
-def report(output_dir: Path) -> str:
-    scores = {
-        name: score(records) for name in CONFIGS if (records := _read(output_dir / f"{name}.jsonl"))
-    }
-    questions = {question.id: question for question in load_questions()}
-    retrieval = score_retrieval(_read(output_dir / "retrieval.jsonl"), questions)
-    (output_dir / "summary.json").write_text(
-        json.dumps({"answers": scores, "retrieval": retrieval}, indent=2) + "\n"
-    )
-
+def _table(scores: dict[str, dict[str, float | None]]) -> list[str]:
     names = list(scores)
-    lines = [
+    return [
         f"| Metric | {' | '.join(names)} |",
         f"|---|{'---|' * len(names)}",
-        f"| Questions | {' | '.join(str(scores[n]['questions']) for n in names)} |",
+        f"| Questions | {' | '.join(_cell(scores[n]['questions'], 'questions') for n in names)} |",
         *(
             f"| {label} | {' | '.join(_cell(scores[n][key], key) for n in names)} |"
             for label, key in ROWS
         ),
+    ]
+
+
+def report(output_dir: Path) -> str:
+    runs = {name: records for name in CONFIGS if (records := _read(output_dir / f"{name}.jsonl"))}
+    if not runs:
+        return "No recorded answers yet."
+    scores = {name: score(records) for name, records in runs.items()}
+    # Configurations can cover different questions (the cross-check runs on Northwind
+    # only), so they are also compared on the questions every one of them answered.
+    shared_ids = set.intersection(*({str(r["id"]) for r in records} for records in runs.values()))
+    shared = {
+        name: score([r for r in records if r["id"] in shared_ids]) for name, records in runs.items()
+    }
+    questions = {question.id: question for question in load_questions()}
+    retrieval = score_retrieval(_read(output_dir / "retrieval.jsonl"), questions)
+    (output_dir / "summary.json").write_text(
+        json.dumps(
+            {"answers": scores, "answers_on_shared_questions": shared, "retrieval": retrieval},
+            indent=2,
+        )
+        + "\n"
+    )
+
+    lines = [
+        "Every question each configuration answered:",
         "",
-        f"Retrieval on the same {retrieval['questions']} answerable questions (hybrid search, "
+        *_table(scores),
+        "",
+        f"The {len(shared_ids)} questions all configurations answered:",
+        "",
+        *_table(shared),
+        "",
+        f"Retrieval on the {retrieval['questions']} answerable questions (hybrid search, "
         f"question as query): Recall@5 {retrieval['recall_at_5']:.2f}, "
         f"Recall@10 {retrieval['recall_at_10']:.2f}, MRR {retrieval['mrr']:.2f}.",
     ]
@@ -395,14 +439,20 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=["run", "report"])
     parser.add_argument("--output-dir", type=Path, required=True)
-    parser.add_argument("--config", choices=list(CONFIGS), action="append")
+    parser.add_argument(
+        "--config", choices=list(CONFIGS), action="append", help="default: agent, single-shot"
+    )
+    parser.add_argument(
+        "--northwind-only", action="store_true", help="skip the 20 HotpotQA questions"
+    )
     arguments = parser.parse_args()
 
     settings = get_settings()
     configure_logging(settings.log_level, json=False)
     if arguments.command == "run":
         arguments.output_dir.mkdir(parents=True, exist_ok=True)
-        asyncio.run(run(arguments.output_dir, arguments.config or list(CONFIGS), settings))
+        configs = arguments.config or ["agent", "single-shot"]
+        asyncio.run(run(arguments.output_dir, configs, settings, arguments.northwind_only))
     else:
         print(report(arguments.output_dir))
 
