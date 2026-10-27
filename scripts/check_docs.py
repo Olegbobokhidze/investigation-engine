@@ -10,6 +10,7 @@ Run with `make docs-check` (CI does too). Standard library only, so it needs no 
 """
 
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -46,10 +47,18 @@ def adr_ids() -> set[str]:
     return {path.name[:4] for path in (ROOT / "docs/decisions").glob("[0-9]*.md")}
 
 
+def is_git_ignored(path: str) -> bool:
+    result = subprocess.run(["git", "check-ignore", "--quiet", path], cwd=ROOT, check=False)
+    return result.returncode == 0
+
+
 def code_path_exists(code: str) -> bool | None:
     """True or False for something that looks like a repository path, None otherwise."""
     path = code.rstrip("/").split(":")[0]  # "file.py:42" names a line in file.py
     if " " in code or "*" in code:
+        return None
+    if is_git_ignored(path):
+        # Local-only files (`apps/api/.env`) exist on a laptop but never in CI.
         return None
     if code.startswith(PATH_ROOTS):
         return (ROOT / path).exists()
