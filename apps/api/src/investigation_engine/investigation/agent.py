@@ -16,6 +16,7 @@
 import asyncio
 import re
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Literal, Protocol
 
@@ -101,11 +102,18 @@ class _Run:
     """State of one investigation."""
 
     question: str
+    # Called with each step as it is taken, so a client can show progress (streaming).
+    on_step: Callable[[Step], None] | None = None
     evidence: Evidence = field(default_factory=Evidence)
     steps: list[Step] = field(default_factory=list)
     llm_calls: int = 0
     total_tokens: int = 0
     models: list[str] = field(default_factory=list)
+
+    def add_step(self, step: Step) -> None:
+        self.steps.append(step)
+        if self.on_step is not None:
+            self.on_step(step)
 
     def record(self, completion: Completion) -> None:
         self.llm_calls += 1
@@ -135,8 +143,12 @@ class Investigator:
         self._should_plan = plan
         self._should_cross_check = cross_check
 
-    async def investigate(self, question: str) -> Investigation:
-        run = _Run(question)
+    async def investigate(
+        self, question: str, on_step: Callable[[Step], None] | None = None
+    ) -> Investigation:
+        """`on_step` receives each step as soon as it is taken (for streaming); the same
+        steps are in the returned investigation."""
+        run = _Run(question, on_step)
         sub_questions = await self._plan(run) if self._should_plan else [question]
         results = await asyncio.gather(*(self._search(run, query) for query in sub_questions))
         seed_passages = [passage for new_passages in results for passage in new_passages]
@@ -164,7 +176,7 @@ class Investigator:
             # Planning only seeds the search: without a plan, search the question itself.
             log.warning("investigation_plan_invalid")
             sub_questions = [run.question]
-        run.steps.append(
+        run.add_step(
             Step(
                 title="Planned the investigation",
                 detail=" · ".join(sub_questions),
@@ -176,7 +188,7 @@ class Investigator:
     async def _search(self, run: _Run, query: str) -> list[Passage]:
         hits = await self._corpus.search(query, self._search_limit)
         new_passages, _ = run.evidence.add([hit.record for hit in hits])
-        run.steps.append(
+        run.add_step(
             Step(
                 title="Searched documents",
                 detail=f'search_documents(query="{query}")',
@@ -227,7 +239,7 @@ class Investigator:
                         # turns are left, the model is asked to add its citations.
                         if is_last_turn:
                             return answer
-                        run.steps.append(
+                        run.add_step(
                             Step(
                                 title="Sent the answer back",
                                 detail="The answer cited no passages; asked for [n] citations.",
@@ -259,7 +271,7 @@ class Investigator:
         claim = _first_sentence(answer.answer)
         hits = await self._corpus.search(claim, self._search_limit)
         new_passages, seen = run.evidence.add([hit.record for hit in hits])
-        run.steps.append(
+        run.add_step(
             Step(
                 title="Cross-checked the answer",
                 detail=f'search_documents(query="{claim}")',
@@ -291,7 +303,7 @@ class Investigator:
                 document_id = GET_DOCUMENT_TOOL.parse(call).document_id
                 records = await self._corpus.read_document(document_id, _DOCUMENT_CHUNKS)
                 new_passages, seen = run.evidence.add(records)
-                run.steps.append(
+                run.add_step(
                     Step(
                         title="Opened a document",
                         detail=f'get_document(document_id="{document_id}")',
@@ -320,7 +332,7 @@ class Investigator:
             answer.conflicts if answer else [],
             is_known=lambda number: run.evidence.get(number) is not None,
         )
-        run.steps.append(
+        run.add_step(
             Step(
                 title="Verified claims against sources",
                 detail=(

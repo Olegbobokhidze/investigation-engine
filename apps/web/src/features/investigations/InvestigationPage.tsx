@@ -5,9 +5,10 @@ import { usePageTitle } from "@/shared/hooks/usePageTitle";
 import { ErrorNotice } from "@/shared/ui/ErrorNotice";
 import { PageContainer } from "@/shared/ui/PageContainer";
 
-import { useCreateInvestigation } from "./api";
+import { useInvestigationStream } from "./api";
 import { sourceElementId } from "./citations";
 import { AnswerCard } from "./components/AnswerCard";
+import { InvestigationSteps } from "./components/InvestigationSteps";
 import { QuestionForm } from "./components/QuestionForm";
 import { SourceList } from "./components/SourceList";
 
@@ -18,7 +19,7 @@ export function InvestigationPage() {
   const [question, setQuestion] = useState("");
   const [validationError, setValidationError] = useState<string>();
   const [activeSourceNumber, setActiveSourceNumber] = useState<number | null>(null);
-  const investigationMutation = useCreateInvestigation();
+  const investigationMutation = useInvestigationStream();
 
   function submitQuestion() {
     const trimmedQuestion = question.trim();
@@ -56,10 +57,15 @@ export function InvestigationPage() {
       {investigationMutation.isPending ? (
         <div
           role="status"
-          className="flex items-center gap-3 rounded-2xl border border-border bg-surface p-7 text-md text-ink-secondary"
+          className="flex flex-col gap-5 rounded-2xl border border-border bg-surface p-7"
         >
-          <LoaderCircle aria-hidden className="size-5 animate-spin text-accent" />
-          Planning, searching the documents and checking each claim against its sources…
+          <div className="flex items-center gap-3 text-md text-ink-secondary">
+            <LoaderCircle aria-hidden className="size-5 animate-spin text-accent" />
+            Planning, searching the documents and checking each claim against its sources…
+          </div>
+          {investigationMutation.steps.length > 0 && (
+            <InvestigationSteps steps={investigationMutation.steps} />
+          )}
         </div>
       ) : investigationMutation.error ? (
         <ErrorNotice title="The investigation failed" error={investigationMutation.error} />

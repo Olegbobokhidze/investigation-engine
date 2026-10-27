@@ -44,6 +44,7 @@ from investigation_engine.investigation.models import Investigation
 from investigation_engine.llm.client import ChatModel, LlmClient, system_message, user_message
 from investigation_engine.llm.tools import Tool
 from investigation_engine.retrieval.embeddings import Embedder
+from investigation_engine.retrieval.reranking import CrossEncoderReranker
 from investigation_engine.retrieval.search import FusionSettings, Retriever
 from investigation_engine.retrieval.vector_store import VectorStore
 
@@ -175,10 +176,12 @@ async def run(
         )
 
     store = VectorStore.from_settings(settings)
+    # The same search as the deployed app, reranker included when it is configured.
     retriever = Retriever(
         Embedder(settings.embedding_model, settings.embedding_query_prefix),
         store,
         FusionSettings.from_settings(settings),
+        CrossEncoderReranker(settings.rerank_model) if settings.rerank_model else None,
     )
     llm = client(settings.llm_base_url, llm_key, settings.llm_model)
     judge = client(settings.judge_base_url, judge_key, settings.judge_model)

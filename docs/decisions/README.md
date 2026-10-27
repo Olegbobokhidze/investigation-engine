@@ -20,3 +20,5 @@ exist.
 | [0008](0008-deployment.md) | API on EC2 behind Caddy, web on Vercel | accepted | live health check |
 | [0009](0009-answer-cross-check.md) | Cross-check answers against other sources | rejected | more false conflicts, same recall |
 | [0010](0010-azure-gpt-5-mini.md) | Agent on gpt-5-mini (Azure), judge stays on Groq | accepted | provider switch with no code change |
+| [0011](0011-cross-encoder-reranking.md) | Re-rank the top 20 fused chunks with MiniLM-L-6 | rejected as default | retrieval MRR 0.880 → 0.932, answers not better |
+| [0012](0012-streaming-investigation-steps.md) | Stream investigation steps as Server-Sent Events | accepted | endpoint and reader tests |

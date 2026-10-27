@@ -13,6 +13,23 @@ Each entry: **Task** · **AI contribution** · **Author decisions** · **Verific
 
 ## 2026-10-27
 
+### Re-ranking and streaming
+
+- **Task:** the two bonus items the other submission had left out.
+- **AI contribution:** a cross-encoder reranker behind a `Reranker` protocol
+  (`retrieval/reranking.py`), measured with two models in the retrieval evaluation and
+  through the answer evaluation; `POST /investigations/stream` (Server-Sent Events from an
+  `on_step` callback, cancelled when the client disconnects), an SSE reader and live steps in
+  the web app, MSW mock; ADR-0011 and ADR-0012. The reranker improved retrieval but not the answers, so it was
+  turned back off by default and recorded as a measured option.
+- **Author decisions:** asked for both features on the same day; chose to build them after
+  seeing that the other submission had neither.
+- **Mistakes caught:** a failing-LLM test first used an empty scripted LLM, which raises the
+  wrong error; TypeScript's stream types rejected `TextDecoderStream`, replaced by a
+  `TextDecoder`.
+- **Verification:** backend and frontend gates; a live stream read with `curl` showed the
+  steps 13 seconds before the result.
+
 ### Load test and this log
 
 - **Task:** close the gaps found by comparing with another submission: no load test, and

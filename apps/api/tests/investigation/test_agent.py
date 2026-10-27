@@ -234,3 +234,16 @@ async def test_investigate_cross_check_keeps_the_first_answer_when_the_revision_
     result = await investigator.investigate("When was CHG-2291 deployed?")
 
     assert result.answer == "At 09:05 [1]."
+
+
+async def test_investigate_reports_each_step_as_it_is_taken() -> None:
+    llm = ScriptedLlm(_plan("cause"), _answer("CHG-2291 caused it [1]."))
+    corpus = FakeCorpus({"cause": [INCIDENT]})
+    reported: list[str] = []
+
+    result = await _investigator(llm, corpus).investigate(
+        "What caused INC-0412?", on_step=lambda step: reported.append(step.title)
+    )
+
+    assert reported == [step.title for step in result.steps]
+    assert reported[0] == "Planned the investigation"

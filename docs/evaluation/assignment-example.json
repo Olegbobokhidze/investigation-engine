@@ -1,0 +1,92 @@
+{
+  "asked_at": "2026-10-27",
+  "url": "https://13-53-155-129.sslip.io/investigations",
+  "id": "inv_d480ded303b5",
+  "question": "Which system changes caused the payment processing delays in March, which services were affected, and which documents confirm this?",
+  "status": "answered",
+  "answer": "The delays were caused by two system changes: CHG-2294 (checkout‑api timeouts reduced to 3s with one retry) and CHG-2291 (payments‑db connection pool reduced from 50 to 20); sources disagree on CHG-2291’s deployment time (09:05 [1] or 09:40 [2]) and on the number of late payments (1,840 [1] or about 2,300 [3]) [1][4][2][3].\n\nThese changes made checkout‑api retry slow fraud‑scoring calls (CHG-2294), which published duplicate payment events, and the reduced payments‑db pool (CHG-2291) left the database unable to handle the extra round trips; ledger‑worker discarded duplicates but still experienced consumer lag and delayed ledger writes, causing merchant balances to be behind [4][5][2][3][1].\n\nThe incident report INC-0412 (timeline and summary) and the March changelog entries CHG-2294 and CHG-2291 document the deployments and effects [1][4][2], and the ledger‑worker postmortem and status page history provide supporting explanation of duplicates, consumer lag, and the merchant balance delays [5][3][6].",
+  "sources": [
+    {
+      "number": 1,
+      "documentId": "northwind_inc_0412_payment_delays",
+      "documentTitle": "inc-0412-payment-delays.pdf",
+      "fileType": "pdf",
+      "excerpt": "INC-0412: Payment processing delays (14 March 2024)\nSeverity: SEV-2. Incident commander: Daniel Okafor. Status: closed.\nSummary\nOn 14 March 2024 card payments were slow to authorize and confirm. 1,840 payments were delayed by\nmore than five minutes. No payment was lost or charged twice.\nTimeline (UTC)\n08:55 - CHG-2294 deployed: checkout-api now times out calls to fraud-scoring after 3 seconds and retries\nonce.\n09:05 - CHG-2291 deployed: the payments-db connection pool was reduced from 50 to 20 connections.\n09:12 - First alert: checkout-api p95 latency above 4 seconds.\n09:40 - ledger-worker consumer lag above 20 minutes.\n10:05 - CHG-2291 reverted (pool back to 50). Latency and lag returned to normal. Incident resolved.\nRoot cause\nThe smaller connection pool (CHG-2291) could not serve peak checkout traffic. Requests waited for a\ndatabase connection, and the new fraud-scoring timeout (CHG-2294) turned the slow ones into retries, which\ndoubled the load on the pool.\nAffected services\ncheckout-api, payments-db and ledger-worker. fraud-scoring itself stayed healthy.\nFollow-up actions\n1. Load-test pool changes before release (owner: Platform Data).\n2. Alert on ledger-worker lag above 10 minutes (owner: Payments)."
+    },
+    {
+      "number": 2,
+      "documentId": "northwind_changelog_2024_03",
+      "documentTitle": "changelog-2024-03.md",
+      "fileType": "md",
+      "excerpt": "## CHG-2291 (14 Mar 2024, 09:40 UTC)\n\nService: payments-db. Connection pool reduced from 50 to 20 connections, as recommended by the Q1 capacity review. Owner: Platform Data team. Reverted on 14 Mar 2024 during INC-0412."
+    },
+    {
+      "number": 3,
+      "documentId": "northwind_ledger_worker_postmortem",
+      "documentTitle": "ledger-worker-postmortem.md",
+      "fileType": "md",
+      "excerpt": "## What happened\n\nledger-worker writes every confirmed payment to the ledger. On 14 March its consumer lag grew while checkout-api retried slow requests, and peaked at 41 minutes. About 2,300 payments reached the ledger late. Balances shown to merchants were behind during that time."
+    },
+    {
+      "number": 4,
+      "documentId": "northwind_changelog_2024_03",
+      "documentTitle": "changelog-2024-03.md",
+      "fileType": "md",
+      "excerpt": "## CHG-2294 (14 Mar 2024, 08:55 UTC)\n\nService: checkout-api. Calls to fraud-scoring time out after 3 seconds instead of 5, with one retry. Owner: Risk team."
+    },
+    {
+      "number": 5,
+      "documentId": "northwind_ledger_worker_postmortem",
+      "documentTitle": "ledger-worker-postmortem.md",
+      "fileType": "md",
+      "excerpt": "## Why the lag grew\n\nRetries from checkout-api published duplicate payment events. ledger-worker discards duplicates, but each one still costs a database round trip on the already exhausted payments-db pool."
+    },
+    {
+      "number": 6,
+      "documentId": "northwind_status_page_history",
+      "documentTitle": "status-page-history.txt",
+      "fileType": "txt",
+      "excerpt": "Status page history, Q1 2024\n\n8 Feb 2024, 14:12 UTC - Investigating: customers can't sign in. Payments are not affected.\n8 Feb 2024, 14:30 UTC - Resolved: sign-in works again.\n\n14 Mar 2024, 09:30 UTC - Investigating: card payments are slower than usual.\n14 Mar 2024, 09:58 UTC - Identified: a recent infrastructure change causes the slowdown. Merchant balances may be up to 25 minutes behind.\n14 Mar 2024, 10:20 UTC - Resolved: payments are processed normally. Receipt emails sent during the incident may arrive late."
+    }
+  ],
+  "conflicts": [
+    {
+      "summary": "The sources disagree on CHG-2291 deployment time: 09:05 [1] or 09:40 [2]."
+    },
+    {
+      "summary": "The sources disagree on the number of delayed payments: 1,840 [1] or about 2,300 [3]."
+    }
+  ],
+  "steps": [
+    {
+      "title": "Planned the investigation",
+      "detail": "March payment processing delays root cause system changes · Services affected by March payment processing delays · Documents confirming March payment processing delays and associated system changes (incident reports, postmortems, change logs)",
+      "result": "3 sub-questions"
+    },
+    {
+      "title": "Searched documents",
+      "detail": "search_documents(query=\"Services affected by March payment processing delays\")",
+      "result": "6 results, 6 new"
+    },
+    {
+      "title": "Searched documents",
+      "detail": "search_documents(query=\"March payment processing delays root cause system changes\")",
+      "result": "6 results, 2 new"
+    },
+    {
+      "title": "Searched documents",
+      "detail": "search_documents(query=\"Documents confirming March payment processing delays and associated system changes (incident reports, postmortems, change logs)\")",
+      "result": "6 results, 3 new"
+    },
+    {
+      "title": "Searched documents",
+      "detail": "search_documents(query=\"CHG-2291 CHG-2294 March payment delays\")",
+      "result": "6 results, 3 new"
+    },
+    {
+      "title": "Verified claims against sources",
+      "detail": "6 sources cited · 0 invalid citations removed · 2 conflicts",
+      "result": "answered"
+    }
+  ]
+}

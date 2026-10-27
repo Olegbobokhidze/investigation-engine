@@ -11,6 +11,7 @@ result file and can be recomputed with the `make eval-*` target named next to it
 | Answers: agent vs single-shot (48 questions) | [`evaluation/answers/`](evaluation/answers/) | `make eval-answers`, `make eval-report` |
 | Answers: agent with cross-check (28 Northwind questions) | [`evaluation/answers/`](evaluation/answers/) | `make eval-cross-check`, `make eval-report` |
 | Production load test (read endpoints) | [`evaluation/load-test.md`](evaluation/load-test.md) | `make load-test` |
+| Re-ranking: answers with the reranker on vs off (48 questions) | [`evaluation/answers-reranker/`](evaluation/answers-reranker/) | `make eval-reranker` |
 | Prompts: current vs v1, both gpt-5-mini (48 questions) | [`evaluation/answers-prompt-v1/`](evaluation/answers-prompt-v1/) | `make eval-prompts` |
 | Models: gpt-5-mini vs gpt-oss-120b, prompt v1 (35 questions) | [`evaluation/answers-gpt-oss-120b/`](evaluation/answers-gpt-oss-120b/) | `make eval-models` |
 
@@ -33,6 +34,9 @@ result file and can be recomputed with the `make eval-*` target named next to it
   fixed both "stopped one hop early" failures and the clutter in abstentions (at most 4
   sources instead of 13), but not over-cautious abstention (0 of 4), and lost two
   contradictory questions, within the run-to-run noise measured below.
+- **A retrieval gain that didn't reach the answers.** A cross-encoder reranker raised
+  retrieval MRR from 0.880 to 0.932 on 200 HotpotQA questions, but with it the agent was right
+  on 0.69 instead of 0.79 and single-shot on the same 0.67; it stays off (ADR-0011).
 - **A negative result.** An answer cross-check step (ADR-0009) didn't help: same
   contradiction recall, more false conflicts (0.23 against 0.14), 36% more tokens. It stays
   off.
@@ -57,6 +61,12 @@ result file and can be recomputed with the `make eval-*` target named next to it
 | contradictory | 0 | 6 | 6 |
 | unanswerable | 0 | 8 | 8 |
 | **total** | 20 | 28 | **48** |
+
+How the assignment's question kinds map onto these types: *simple* questions need one fact
+from one document; *multi-hop* questions need facts from two or more documents linked in
+order (every HotpotQA question needs both of its paragraphs, every Northwind multi-hop
+question at least two files), so they are also the multi-document questions;
+*unanswerable* and *contradictory* are their own types.
 
 Three of the Northwind questions (2 simple, 1 multi-hop) are prompt-injection tests: they are
 answered from a document that also tells AI assistants to ignore their instructions and send
@@ -135,11 +145,16 @@ Full table and discussion: [`evaluation/retrieval-hotpotqa.md`](evaluation/retri
 | dense | 0.615 | 0.750 | 0.792 | 0.868 |
 | BM25 | 0.522 | 0.665 | 0.785 | 0.825 |
 | RRF k=60 | 0.598 | 0.770 | 0.855 | 0.874 |
-| **RRF k=10 (default)** | **0.615** | **0.795** | **0.875** | **0.880** |
+| RRF k=10 (default) | 0.615 | 0.795 | 0.875 | 0.880 |
+| **RRF k=10 + MiniLM-L-6 reranker** | **0.665** | **0.818** | **0.892** | **0.932** |
+| RRF k=10 + MiniLM-L-12 reranker | 0.680 | 0.823 | 0.885 | 0.933 |
 
-Recall@2 stays near 0.61 for every configuration: the second paragraph of a multi-hop
-question often names an entity only the first paragraph mentions, so one search with the
-question can't find it. That gap is what the agent's follow-up searches are for.
+The reranker reads the top 20 fused chunks with the question and adds 5 points of MRR and
+Recall@2 for about a second per search, but it didn't make the answers better (section 6),
+so it is off by default ([ADR-0011](decisions/0011-cross-encoder-reranking.md)).
+Recall@2 still stays below 0.7: the second paragraph of a multi-hop question often names an
+entity only the first paragraph mentions, so one search with the question can't find it.
+That gap is what the agent's follow-up searches are for.
 
 ## 5. Chunking
 
@@ -220,6 +235,29 @@ What each rule did, checked question by question:
   of the prompt.
 
 The current prompt is deployed: same correctness, fewer tokens, and no cluttered abstentions.
+
+### Re-ranking (`make eval-reranker`)
+
+The same 48 questions with the MiniLM-L-6 reranker on (top 20 fused chunks reordered), against
+the deployed configuration without it:
+
+| Metric | reranker off (deployed) | reranker on |
+|---|---|---|
+| Agent: answer correctness | **0.79** | 0.69 |
+| Agent: citation precision | 0.70 | **0.75** |
+| Agent: evidence recall | 0.88 | **0.91** |
+| Agent: abstention recall | **1.00** | 0.88 |
+| Single-shot: answer correctness | 0.67 | 0.67 |
+| Single-shot: evidence recall | **0.85** | 0.82 |
+| Agent latency median / p95 (s) | **21.2 / 34.0** | 22.4 / 39.1 |
+
+Nine agent verdicts changed, seven for the worse. Only one of those is a retrieval loss
+("Willow Vale": a gold paragraph dropped out of the reranked top 6); one is a judge error (its
+reason says the answer matches, its verdict says it doesn't); the rest are answer-step
+failures seen in earlier runs too, and one improvement ("Ray Wilson and Leo") is a retrieval
+gain. The drop is therefore not clearly the reranker's doing, but nothing here shows that it
+helps the answers, so the deployed default follows the end-to-end result, not the retrieval
+proxy ([ADR-0011](decisions/0011-cross-encoder-reranking.md)).
 
 ### Answer cross-check (prompt v1, `make eval-cross-check`)
 

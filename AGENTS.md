@@ -62,7 +62,8 @@ Run everything from the repository root through `make` (`make help` lists all ta
 - **JSON is camelCase on the wire**; Python stays snake_case internally (Pydantic aliases).
 - **Errors** are always `{"error": {"code": "snake_case_code", "message": "Human sentence."}}`
   with a matching HTTP status. The message is shown to users as-is.
-- **Endpoints:** `POST /investigations`, `GET /documents?search=&page=&pageSize=`,
+- **Endpoints:** `POST /investigations`, `POST /investigations/stream` (Server-Sent Events:
+  `step` events, then `result` or `error`), `GET /documents?search=&page=&pageSize=`,
   `POST /documents` (multipart `files`), `PUT /documents/{id}` (multipart `file`),
   `DELETE /documents/{id}`. Documents have `origin: "dataset" | "upload"`; dataset documents
   are read-only (`403`).

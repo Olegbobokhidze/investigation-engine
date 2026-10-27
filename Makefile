@@ -5,7 +5,7 @@ WEB := pnpm --dir apps/web
 
 .DEFAULT_GOAL := help
 .PHONY: help docs-check services-up services-down api-install api-dev api-format api-check \
-	data-hotpotqa data-synthetic eval-retrieval eval-chunking eval-answers eval-cross-check eval-report eval-models eval-prompts load-test web-install web-dev web-format web-check
+	data-hotpotqa data-synthetic eval-retrieval eval-chunking eval-answers eval-cross-check eval-report eval-models eval-prompts eval-reranker load-test web-install web-dev web-format web-check
 
 help: ## List available targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-17s %s\n", $$1, $$2}'
@@ -70,6 +70,11 @@ eval-prompts: ## Compare the current prompt with prompt v1, both on gpt-5-mini (
 	$(API) run python -m investigation_engine.evaluation.answers compare \
 		--output-dir $(CURDIR)/docs/evaluation/answers \
 		--baseline-dir $(CURDIR)/docs/evaluation/answers-prompt-v1
+
+eval-reranker: ## Compare the agent's answers with the reranker on and off (no LLM calls)
+	$(API) run python -m investigation_engine.evaluation.answers compare \
+		--output-dir $(CURDIR)/docs/evaluation/answers-reranker \
+		--baseline-dir $(CURDIR)/docs/evaluation/answers
 
 API_URL ?= https://13-53-155-129.sslip.io
 

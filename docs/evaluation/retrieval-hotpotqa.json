@@ -7,42 +7,64 @@
       "mode": "dense",
       "rrf_k": 60,
       "dense_weight": 1.0,
-      "sparse_weight": 1.0
+      "sparse_weight": 1.0,
+      "rerank_model": null
     },
     {
       "name": "sparse (BM25)",
       "mode": "sparse",
       "rrf_k": 60,
       "dense_weight": 1.0,
-      "sparse_weight": 1.0
+      "sparse_weight": 1.0,
+      "rerank_model": null
     },
     {
       "name": "hybrid RRF k=60 (paper)",
       "mode": "hybrid",
       "rrf_k": 60,
       "dense_weight": 1.0,
-      "sparse_weight": 1.0
+      "sparse_weight": 1.0,
+      "rerank_model": null
     },
     {
       "name": "hybrid RRF k=60, BM25 x0.5",
       "mode": "hybrid",
       "rrf_k": 60,
       "dense_weight": 1.0,
-      "sparse_weight": 0.5
+      "sparse_weight": 0.5,
+      "rerank_model": null
     },
     {
       "name": "hybrid RRF k=10",
       "mode": "hybrid",
       "rrf_k": 10,
       "dense_weight": 1.0,
-      "sparse_weight": 1.0
+      "sparse_weight": 1.0,
+      "rerank_model": null
     },
     {
       "name": "hybrid RRF k=10, BM25 x0.5",
       "mode": "hybrid",
       "rrf_k": 10,
       "dense_weight": 1.0,
-      "sparse_weight": 0.5
+      "sparse_weight": 0.5,
+      "rerank_model": null
+    },
+    {
+      "name": "hybrid RRF k=10 + MiniLM-L-6 reranker",
+      "mode": "hybrid",
+      "rrf_k": 10,
+      "dense_weight": 1.0,
+      "sparse_weight": 1.0,
+      "rerank_model": "Xenova/ms-marco-MiniLM-L-6-v2"
+    },
+    {
+      "name": "hybrid RRF k=10 + MiniLM-L-12 reranker",
+      "mode": "hybrid",
+      "rrf_k": 10,
+      "dense_weight": 1.0,
+      "sparse_weight": 1.0,
+      "rerank_model": "Xenova/ms-marco-MiniLM-L-12-v2"
     }
   ],
   "results": {
@@ -50,37 +72,57 @@
       "recall@2": 0.615,
       "recall@5": 0.75,
       "recall@10": 0.792,
-      "mrr": 0.868
+      "mrr": 0.868,
+      "ms": 0.024
     },
     "sparse (BM25)": {
       "recall@2": 0.522,
       "recall@5": 0.665,
       "recall@10": 0.785,
-      "mrr": 0.825
+      "mrr": 0.825,
+      "ms": 0.02
     },
     "hybrid RRF k=60 (paper)": {
       "recall@2": 0.598,
       "recall@5": 0.77,
       "recall@10": 0.855,
-      "mrr": 0.874
+      "mrr": 0.874,
+      "ms": 0.116
     },
     "hybrid RRF k=60, BM25 x0.5": {
       "recall@2": 0.6,
-      "recall@5": 0.76,
+      "recall@5": 0.762,
       "recall@10": 0.823,
-      "mrr": 0.862
+      "mrr": 0.862,
+      "ms": 0.073
     },
     "hybrid RRF k=10": {
       "recall@2": 0.615,
       "recall@5": 0.795,
       "recall@10": 0.875,
-      "mrr": 0.88
+      "mrr": 0.88,
+      "ms": 0.068
     },
     "hybrid RRF k=10, BM25 x0.5": {
       "recall@2": 0.605,
       "recall@5": 0.777,
       "recall@10": 0.823,
-      "mrr": 0.865
+      "mrr": 0.865,
+      "ms": 0.064
+    },
+    "hybrid RRF k=10 + MiniLM-L-6 reranker": {
+      "recall@2": 0.665,
+      "recall@5": 0.818,
+      "recall@10": 0.892,
+      "mrr": 0.932,
+      "ms": 1127.774
+    },
+    "hybrid RRF k=10 + MiniLM-L-12 reranker": {
+      "recall@2": 0.68,
+      "recall@5": 0.823,
+      "recall@10": 0.885,
+      "mrr": 0.933,
+      "ms": 2039.271
     }
   }
 }

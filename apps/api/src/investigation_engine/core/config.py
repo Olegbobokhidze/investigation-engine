@@ -73,6 +73,12 @@ class Settings(BaseSettings):
     rrf_k: int = Field(default=10, ge=0)
     rrf_dense_weight: float = Field(default=1.0, ge=0)
     rrf_sparse_weight: float = Field(default=1.0, ge=0)
+    # Re-ranking: a cross-encoder reorders the top fused candidates; None turns it off.
+    # Off by default: MiniLM-L-6 raised retrieval MRR from 0.880 to 0.932, but answers were
+    # not better with it (docs/decisions/0011-cross-encoder-reranking.md). To try it:
+    # RERANK_MODEL=Xenova/ms-marco-MiniLM-L-6-v2.
+    rerank_model: str | None = None
+    rerank_candidates: int = Field(default=20, gt=0)
 
     # Chunking (sizes in words; overlap applies to the fixed strategy only)
     chunking_strategy: ChunkingStrategy = "structured"

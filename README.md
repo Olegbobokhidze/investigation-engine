@@ -33,34 +33,35 @@ is shown.
 |---|---|
 | **Corpus** | 66,581 HotpotQA Wikipedia paragraphs + 12 synthetic "Northwind Pay" company documents (incident reports, change logs, runbooks, status page, on-call schedule) in PDF, DOCX, Markdown and TXT, with planted multi-hop chains, contradictions, gaps and a prompt injection |
 | **Ingest** | upload, replace and delete through the UI; parse, normalize, dedup by SHA-256, structure-aware chunking, dense + BM25 embeddings; datasets are read-only |
-| **Search** | hybrid: dense (bge-small) and BM25 in Qdrant, fused with our weighted Reciprocal Rank Fusion |
+| **Search** | hybrid: dense (bge-small) and BM25 in Qdrant, fused with our weighted Reciprocal Rank Fusion; an optional cross-encoder reranker (measured, off by default) |
 | **Answer** | a plan-then-act agent with tool calling (`search_documents`, `get_document`, `submit_answer`), then a citation check in code: answered, conflicting or abstained |
 | **Evaluation** | 48 questions (simple, multi-hop, contradictory, unanswerable, prompt injection); compared: agent vs single-shot, two prompts, two models, a cross-check step, 5 search and 6 chunking configurations |
 | **Stack** | FastAPI + Pydantic (Python 3.12, mypy strict) · React 19 + TypeScript · Postgres (Neon) · Qdrant Cloud · gpt-5-mini on Azure · EC2 + Caddy · Vercel |
 
 ## Example
 
-A contradiction question from the evaluation set
-([`docs/evaluation/answers-prompt-v1/agent.jsonl`](docs/evaluation/answers-prompt-v1/agent.jsonl),
-id `nw-conflict-1`). The judge marked it correct.
+The assignment's own example question, asked on the live demo
+([full response](docs/evaluation/assignment-example.json)):
 
-> **When was CHG-2291 deployed?**
+> **Which system changes caused the payment processing delays in March, which services were
+> affected, and which documents confirm this?**
 
 | Field | Value |
 |---|---|
 | `status` | `answered` |
-| `answer` | "The sources disagree: 09:40 UTC [1] or 09:05 UTC [2]. Both sources place the change on 14 March 2024 [1][2]. …" |
-| `conflicts` | "The changelog says 09:40 [1]; the incident report says 09:05 [2]." |
-| sources | [1] `changelog-2024-03.md` (Markdown) · [2] `inc-0412-payment-delays.pdf` (PDF) |
-| gold answer | "conflicting: 09:05 UTC (INC-0412 incident report) vs 09:40 UTC (March change log)" |
-| work done | 1 planned search, 2 LLM calls, 2,930 tokens, 12.6 s |
+| `answer` | "The delays were caused by two system changes: CHG-2294 (checkout-api timeouts reduced to 3s with one retry) and CHG-2291 (payments-db connection pool reduced from 50 to 20) … These changes made checkout-api retry slow fraud-scoring calls, which published duplicate payment events, and the reduced payments-db pool left the database unable to handle the extra round trips; ledger-worker … experienced consumer lag and delayed ledger writes, causing merchant balances to be behind [4][5][2][3][1]. …" |
+| `conflicts` | "The sources disagree on CHG-2291 deployment time: 09:05 [1] or 09:40 [2]." · "The sources disagree on the number of delayed payments: 1,840 [1] or about 2,300 [3]." |
+| sources | `inc-0412-payment-delays.pdf` (PDF) · `changelog-2024-03.md` (Markdown) · `ledger-worker-postmortem.md` (Markdown) · `status-page-history.txt` (TXT) |
+| steps | planned 3 searches → searched → searched again for `CHG-2291 CHG-2294 March payment delays`, the names it had just found → verified 6 citations, 2 conflicts |
 
-The disagreement is planted ([ground truth](docs/evaluation/northwind-ground-truth.md)). Try
-it yourself in the [live demo](https://investigation-engine-xi.vercel.app), or:
+Both disagreements are planted in the corpus
+([ground truth](docs/evaluation/northwind-ground-truth.md)); the agent found them without
+being asked. Try it in the [live demo](https://investigation-engine-xi.vercel.app), or:
 
 ```bash
 curl -s -X POST https://13-53-155-129.sslip.io/investigations \
-  -H 'content-type: application/json' -d '{"question": "When was CHG-2291 deployed?"}'
+  -H 'content-type: application/json' \
+  -d '{"question": "Which system changes caused the payment processing delays in March?"}'
 ```
 
 ## Architecture
@@ -102,7 +103,10 @@ flowchart LR
 ### Ask flow
 
 `POST /investigations` ([agent.py](apps/api/src/investigation_engine/investigation/agent.py)):
-at most 1 planning call + 4 loop turns, the last of which can only submit an answer.
+at most 1 planning call + 4 loop turns, the last of which can only submit an answer. The UI
+calls `POST /investigations/stream`, which runs the same agent and sends each step as a
+Server-Sent Event the moment it is taken, so the 20 seconds of an investigation show progress
+instead of a spinner ([investigations.py](apps/api/src/investigation_engine/api/routes/investigations.py)).
 
 ```mermaid
 sequenceDiagram
@@ -142,6 +146,8 @@ flowchart LR
     dense --> rrf["weighted RRF<br/>k = 10, equal weights"]
     bm25 --> rrf
     rrf --> hits["top-k chunks"]
+    rrf -.-> rerank["optional: cross-encoder reranker<br/>MiniLM-L-6 on the top 20, off by default"]
+    rerank -.-> hits
 ```
 
 <details>
@@ -151,7 +157,7 @@ flowchart LR
 |---|---|---|
 | 1. Rate limit | 20 investigations per client IP and 40 in total per UTC day, else 429 | [rate_limit.py](apps/api/src/investigation_engine/core/rate_limit.py) |
 | 2. Plan | a forced `plan_investigation` call splits the question into 1–4 search queries | [agent.py](apps/api/src/investigation_engine/investigation/agent.py), [prompts.py](apps/api/src/investigation_engine/investigation/prompts.py) |
-| 3. Search | each sub-question in parallel: dense + BM25 top 40, weighted RRF, 6 passages each | [search.py](apps/api/src/investigation_engine/retrieval/search.py), [fusion.py](apps/api/src/investigation_engine/retrieval/fusion.py) |
+| 3. Search | each sub-question in parallel: dense + BM25 top 40, weighted RRF, 6 passages each (a cross-encoder can re-rank the top 20 when `RERANK_MODEL` is set) | [search.py](apps/api/src/investigation_engine/retrieval/search.py), [fusion.py](apps/api/src/investigation_engine/retrieval/fusion.py), [reranking.py](apps/api/src/investigation_engine/retrieval/reranking.py) |
 | 4. Tool loop | the model reads numbered passages and searches again (the next hop), opens a document or submits; an uncited answer is sent back | [agent.py](apps/api/src/investigation_engine/investigation/agent.py), [tools.py](apps/api/src/investigation_engine/llm/tools.py) |
 | 5. LLM client | timeouts, retries on 408/429/5xx with capped backoff and `Retry-After`, a fallback model, then 502 | [client.py](apps/api/src/investigation_engine/llm/client.py) |
 | 6. Verify | citations to passages the model wasn't shown are removed; no valid citation → abstain; a conflict must cite both sides; sources renumbered 1..n | [citations.py](apps/api/src/investigation_engine/investigation/citations.py) |
@@ -200,6 +206,7 @@ committed last, and a failure rolls the row back
 | Endpoint | |
 |---|---|
 | `POST /investigations` | `{question}` → answer, cited sources, conflicts, steps; 429 past the daily cap |
+| `POST /investigations/stream` | the same, as Server-Sent Events: a `step` event as each step is taken, then `result` or `error`; the UI uses it to show progress |
 | `GET /documents?search=&page=&pageSize=` | paginated document list |
 | `POST /documents` | multipart `files`: one result per file (indexed, duplicate or failed) |
 | `PUT /documents/{id}` | multipart `file`: replace an uploaded document |
@@ -216,6 +223,8 @@ file or make target that doesn't exist.
 | One modular monolith with ports, no RAG framework | every line explainable; providers swapped in one place | [ADR-0001](docs/decisions/0001-modular-monolith.md) |
 | Postgres is the source of truth, Qdrant the index | unique hashes and pagination in SQL; dense + BM25 in one store | [ADR-0002](docs/decisions/0002-postgres-and-qdrant.md) |
 | Hybrid search with our weighted RRF, k=10 | Recall@10 0.875 vs 0.792 dense, 0.785 BM25; k=10 beat the paper's 60 | [ADR-0003](docs/decisions/0003-hybrid-search-rrf.md) |
+| A cross-encoder reranker: **off by default** | retrieval MRR 0.880 → 0.932, but the answers weren't better (0.69 vs 0.79), so the end-to-end result decides | [ADR-0011](docs/decisions/0011-cross-encoder-reranking.md) |
+| Steps streamed as Server-Sent Events | 20 s of progress instead of a spinner; the answer is shown only after its citations are checked | [ADR-0012](docs/decisions/0012-streaming-investigation-steps.md) |
 | Structure-aware chunks, 200 words | best Recall@3/5 at a third less context | [ADR-0004](docs/decisions/0004-structured-chunking.md) |
 | Plan, then a bounded tool loop | beats single-shot on multi-hop and contradictions | [ADR-0005](docs/decisions/0005-agent-loop.md) |
 | Citations checked in code | a hallucinated `[7]` never reaches the user | [ADR-0006](docs/decisions/0006-verified-citations.md) |
@@ -244,8 +253,9 @@ Load test of the live API ([`docs/evaluation/load-test.md`](docs/evaluation/load
 search is the bottleneck (p95 763 ms at 10 clients, 6 s at 25).
 
 Also measured: a prompt revision driven by the failure analysis (same correctness, fewer
-tokens, shorter abstentions), an answer cross-check (rejected) and gpt-5-mini against
-gpt-oss-120b (0.74 against 0.66 on the same prompt).
+tokens, shorter abstentions), a cross-encoder reranker (better retrieval, not better answers:
+off), an answer cross-check (rejected) and gpt-5-mini against gpt-oss-120b (0.74 against 0.66
+on the same prompt).
 
 ## Quick start
 
@@ -283,13 +293,14 @@ make data-synthetic   # 12 Northwind Pay documents in PDF, DOCX, Markdown and TX
 - **Run the evaluations:**
 
 ```bash
-make eval-retrieval   # 5 search configurations, 200 HotpotQA questions (no LLM)
+make eval-retrieval   # 8 search configurations incl. 2 rerankers, 200 HotpotQA questions (no LLM)
 make eval-chunking    # 6 chunking configurations on Northwind (local Qdrant, no LLM)
 make eval-answers     # agent vs single-shot, 48 questions (LLM; resumable)
 make eval-cross-check # the agent with the answer cross-check, 28 Northwind questions (LLM)
 make eval-report      # metrics from the recorded answers (no LLM)
 make eval-prompts     # the current prompt vs prompt v1 (no LLM)
 make eval-models      # gpt-5-mini vs gpt-oss-120b, same prompt (no LLM)
+make eval-reranker    # answers with the reranker on vs off (no LLM)
 make load-test        # latency percentiles of the live API's read endpoints
 ```
 
@@ -304,6 +315,21 @@ make load-test        # latency percentiles of the live API's read endpoints
 
 **Secrets** live only in `/opt/investigation-engine/.env` on the host (mode 600); GitHub holds
 only the host address and an SSH key. One-time host setup: `apps/api/deploy/bootstrap.sh`.
+
+**Free tiers only: nothing was bought.** Every service runs on a free tier or on credit that
+came with a free account, without a payment card where the provider allows it.
+
+| Service | Plan | Limit that matters here |
+|---|---|---|
+| Vercel | Hobby (free) | static hosting for the web app |
+| AWS EC2 t3.small | AWS Free plan credits | the instance runs on the account's credits; a 2 GB host fits the API with its embedding models (about 500 MB) |
+| Neon Postgres | free tier | compute sleeps when idle and wakes on the next query (the first request after a pause is slower) |
+| Qdrant Cloud | free cluster | one small cluster; 68,779 chunk points with dense and BM25 vectors fit |
+| Azure AI Foundry | Azure for Students credit (no card) | the daily cap of 40 investigations keeps spend well under a dollar a day |
+| Groq | free tier | about 200k tokens per model per day: the local default and the evaluation judge |
+
+**Persistence:** documents and chunks live in Neon and Qdrant Cloud, outside the API host, so
+a restart or redeploy of the API loses nothing; only the in-memory rate-limit counts reset.
 
 | Cost | |
 |---|---|

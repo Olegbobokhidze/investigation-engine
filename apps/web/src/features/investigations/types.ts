@@ -39,3 +39,13 @@ export interface Investigation {
 export interface CreateInvestigationRequest {
   question: string;
 }
+
+/**
+ * Events of `POST /investigations/stream`: a `step` as each step is taken, then one
+ * `result` (the same body `POST /investigations` returns) or one `error` (the usual error
+ * envelope).
+ */
+export type InvestigationStreamEvent =
+  | { event: "step"; data: InvestigationStep }
+  | { event: "result"; data: Investigation }
+  | { event: "error"; data: { error: { code: string; message: string } } };

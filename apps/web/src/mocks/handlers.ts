@@ -1,7 +1,11 @@
 import { delay, http, HttpResponse } from "msw";
 
 import type { CorpusDocument, DocumentPage, UploadResult } from "@/features/documents/types";
-import type { CreateInvestigationRequest, Investigation } from "@/features/investigations/types";
+import type {
+  CreateInvestigationRequest,
+  Investigation,
+  InvestigationStreamEvent,
+} from "@/features/investigations/types";
 import { env } from "@/shared/config/env";
 import type { FileType } from "@/shared/fileTypes";
 
@@ -150,14 +154,42 @@ export const documentHandlers = [
   }),
 ];
 
+function mockInvestigation(question: string): Investigation {
+  const fixture = /refund/i.test(question)
+    ? insufficientEvidenceInvestigation
+    : answeredInvestigation;
+  return { id: randomId("inv"), question, ...fixture };
+}
+
+/** One Server-Sent Event, formatted as the backend sends it. */
+function serverSentEvent({ event, data }: InvestigationStreamEvent): string {
+  return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+}
+
 export const investigationHandlers = [
   http.post(apiUrl("/investigations"), async ({ request }) => {
     await delay(1800);
     const { question } = (await request.json()) as CreateInvestigationRequest;
-    const fixture = /refund/i.test(question)
-      ? insufficientEvidenceInvestigation
-      : answeredInvestigation;
-    const body: Investigation = { id: randomId("inv"), question, ...fixture };
-    return HttpResponse.json(body);
+    return HttpResponse.json(mockInvestigation(question));
+  }),
+
+  // Sends the fixture's steps one by one, then the result, like the real stream.
+  http.post(apiUrl("/investigations/stream"), async ({ request }) => {
+    const { question } = (await request.json()) as CreateInvestigationRequest;
+    const investigation = mockInvestigation(question);
+    const encoder = new TextEncoder();
+    const body = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        for (const step of investigation.steps) {
+          await delay(500);
+          controller.enqueue(encoder.encode(serverSentEvent({ event: "step", data: step })));
+        }
+        controller.enqueue(
+          encoder.encode(serverSentEvent({ event: "result", data: investigation })),
+        );
+        controller.close();
+      },
+    });
+    return new HttpResponse(body, { headers: { "Content-Type": "text/event-stream" } });
   }),
 ];

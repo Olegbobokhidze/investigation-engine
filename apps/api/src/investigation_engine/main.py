@@ -22,6 +22,7 @@ from investigation_engine.core.logging import configure_logging
 from investigation_engine.core.rate_limit import DailyQuota
 from investigation_engine.llm.client import ChatModel, LlmClient
 from investigation_engine.retrieval.embeddings import Embedder, TextEmbedder
+from investigation_engine.retrieval.reranking import CrossEncoderReranker
 from investigation_engine.retrieval.search import FusionSettings, Retriever
 from investigation_engine.retrieval.vector_store import VectorStore
 
@@ -53,8 +54,9 @@ def create_app(
         app.state.database = database
         app.state.embedder = text_embedder
         app.state.vector_store = vector_store
+        reranker = CrossEncoderReranker(settings.rerank_model) if settings.rerank_model else None
         app.state.retriever = Retriever(
-            text_embedder, vector_store, FusionSettings.from_settings(settings)
+            text_embedder, vector_store, FusionSettings.from_settings(settings), reranker
         )
         app.state.llm = llm or llm_client
         app.state.investigation_quota = DailyQuota(

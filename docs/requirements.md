@@ -20,7 +20,7 @@ unless they start with `apps/`, `docs/` or `.github/`.
 | Requirement | Implementation | Tests | Evidence |
 |---|---|---|---|
 | Vector database and embeddings | Qdrant, bge-small dense + BM25 sparse: `retrieval/vector_store.py`, `retrieval/embeddings.py` | `apps/api/tests/retrieval/test_vector_store.py`, `apps/api/tests/retrieval/test_embeddings.py` | [ADR-0002](decisions/0002-postgres-and-qdrant.md) |
-| Hybrid search | `retrieval/search.py` | `apps/api/tests/retrieval/test_search.py` | [`docs/evaluation/retrieval-hotpotqa.md`](evaluation/retrieval-hotpotqa.md) |
+| Hybrid search | `retrieval/search.py`, re-ranked by `retrieval/reranking.py` | `apps/api/tests/retrieval/test_search.py`, `apps/api/tests/retrieval/test_reranking.py` | [`docs/evaluation/retrieval-hotpotqa.md`](evaluation/retrieval-hotpotqa.md) |
 | Own ranking or fusion algorithm | weighted Reciprocal Rank Fusion: `retrieval/fusion.py` | `apps/api/tests/retrieval/test_fusion.py` | [ADR-0003](decisions/0003-hybrid-search-rrf.md) |
 
 ## LLM reasoning
@@ -73,4 +73,6 @@ unless they start with `apps/`, `docs/` or `.github/`.
 | Model comparison | done: gpt-5-mini vs gpt-oss-120b on 35 questions (report, section 6) |
 | Prompt-injection result | 3/3 resisted in every configuration |
 | Load test | done: read endpoints of the live API at 1–25 clients, investigation p50/p95 from the evaluation ([load-test.md](evaluation/load-test.md)) |
-| Reranking, caching, streaming | not done |
+| Streaming | done: `POST /investigations/stream` sends each step as a Server-Sent Event; the UI shows them live ([ADR-0012](decisions/0012-streaming-investigation-steps.md)) |
+| Re-ranking | done and measured: a cross-encoder on the top 20 fused chunks raises retrieval MRR 0.880 → 0.932 but didn't improve answers, so it is an option, off by default ([ADR-0011](decisions/0011-cross-encoder-reranking.md)) |
+| Caching | not done |

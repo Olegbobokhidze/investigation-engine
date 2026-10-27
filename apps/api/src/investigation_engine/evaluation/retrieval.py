@@ -2,8 +2,8 @@
 
 For each question the gold documents are its two supporting paragraphs. Dense and BM25
 candidates are fetched once per question; every configuration (dense alone, BM25 alone,
-RRF with various k and weights) is then ranked from those same candidates in memory, so
-the comparison is fair and needs no extra searches.
+RRF with various k and weights, RRF re-ranked by a cross-encoder) is then ranked from those
+same candidates, so the comparison is fair and needs no extra searches.
 
 Run from apps/api against the loaded corpus:
     uv run python -m investigation_engine.evaluation.retrieval --questions 200 --output FILE
@@ -14,6 +14,7 @@ import asyncio
 import hashlib
 import json
 import statistics
+import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -26,11 +27,14 @@ from investigation_engine.datasets.hotpotqa import document_id, download
 from investigation_engine.evaluation.metrics import recall_at_k, reciprocal_rank, unique_in_order
 from investigation_engine.retrieval.embeddings import Embedder
 from investigation_engine.retrieval.fusion import weighted_rrf
+from investigation_engine.retrieval.reranking import CrossEncoderReranker, Reranker, rerank
 from investigation_engine.retrieval.vector_store import ScoredChunk, VectorStore
 
 log = structlog.get_logger()
 
 CANDIDATES = 40
+# Fused candidates a reranker reads, as in the app (`RERANK_CANDIDATES`).
+RERANK_CANDIDATES = 20
 
 
 @dataclass(frozen=True)
@@ -48,6 +52,7 @@ class Config:
     rrf_k: int = 60
     dense_weight: float = 1.0
     sparse_weight: float = 1.0
+    rerank_model: str | None = None  # re-rank the fused candidates with this cross-encoder
 
 
 CONFIGS = [
@@ -57,6 +62,18 @@ CONFIGS = [
     Config("hybrid RRF k=60, BM25 x0.5", "hybrid", rrf_k=60, sparse_weight=0.5),
     Config("hybrid RRF k=10", "hybrid", rrf_k=10),
     Config("hybrid RRF k=10, BM25 x0.5", "hybrid", rrf_k=10, sparse_weight=0.5),
+    Config(
+        "hybrid RRF k=10 + MiniLM-L-6 reranker",
+        "hybrid",
+        rrf_k=10,
+        rerank_model="Xenova/ms-marco-MiniLM-L-6-v2",
+    ),
+    Config(
+        "hybrid RRF k=10 + MiniLM-L-12 reranker",
+        "hybrid",
+        rrf_k=10,
+        rerank_model="Xenova/ms-marco-MiniLM-L-12-v2",
+    ),
 ]
 
 
@@ -79,9 +96,14 @@ def load_questions(path: Path, count: int) -> list[Question]:
 
 
 def rank_documents(
-    config: Config, dense: list[ScoredChunk], sparse: list[ScoredChunk]
+    config: Config,
+    dense: list[ScoredChunk],
+    sparse: list[ScoredChunk],
+    query: str = "",
+    reranker: Reranker | None = None,
 ) -> list[str]:
-    """Document ids in the order the configuration ranks them."""
+    """Document ids in the order the configuration ranks them. A reranker reorders the top
+    fused candidates and drops the rest, as the app does."""
     if config.mode == "dense":
         chunks = dense
     elif config.mode == "sparse":
@@ -94,6 +116,10 @@ def rank_documents(
             k=config.rrf_k,
         )
         chunks = [by_point[point_id] for point_id, _ in fused]
+        if reranker is not None:
+            candidates = [chunk.record for chunk in chunks[:RERANK_CANDIDATES]]
+            reranked = rerank(query, candidates, reranker)
+            return unique_in_order(record.document_id for record, _ in reranked)
     return unique_in_order(chunk.record.document_id for chunk in chunks)
 
 
@@ -102,8 +128,13 @@ async def evaluate(settings: Settings, question_count: int) -> dict[str, dict[st
     embedder = Embedder(settings.embedding_model, settings.embedding_query_prefix)
     store = VectorStore.from_settings(settings)
 
+    rerankers = {
+        config.rerank_model: CrossEncoderReranker(config.rerank_model)
+        for config in CONFIGS
+        if config.rerank_model
+    }
     per_config: dict[str, dict[str, list[float]]] = {
-        config.name: {"recall@2": [], "recall@5": [], "recall@10": [], "mrr": []}
+        config.name: {"recall@2": [], "recall@5": [], "recall@10": [], "mrr": [], "ms": []}
         for config in CONFIGS
     }
     for number, question in enumerate(questions, start=1):
@@ -113,8 +144,12 @@ async def evaluate(settings: Settings, question_count: int) -> dict[str, dict[st
             store.search_sparse(embedding.sparse, CANDIDATES),
         )
         for config in CONFIGS:
-            ranked = rank_documents(config, dense, sparse)
+            reranker = rerankers[config.rerank_model] if config.rerank_model else None
+            started = time.perf_counter()
+            ranked = rank_documents(config, dense, sparse, question.text, reranker)
             scores = per_config[config.name]
+            # Ranking time only: the searches are shared by every configuration.
+            scores["ms"].append((time.perf_counter() - started) * 1000)
             for k in (2, 5, 10):
                 scores[f"recall@{k}"].append(recall_at_k(ranked, question.gold_document_ids, k))
             scores["mrr"].append(reciprocal_rank(ranked, question.gold_document_ids))
@@ -132,13 +167,13 @@ def to_markdown(results: dict[str, dict[str, float]], question_count: int) -> st
     lines = [
         f"Retrieval on {question_count} HotpotQA dev questions (2 gold documents each)",
         "",
-        "| Configuration | Recall@2 | Recall@5 | Recall@10 | MRR |",
-        "|---|---|---|---|---|",
+        "| Configuration | Recall@2 | Recall@5 | Recall@10 | MRR | Ranking ms |",
+        "|---|---|---|---|---|---|",
     ]
     for name, scores in results.items():
         lines.append(
             f"| {name} | {scores['recall@2']:.3f} | {scores['recall@5']:.3f} "
-            f"| {scores['recall@10']:.3f} | {scores['mrr']:.3f} |"
+            f"| {scores['recall@10']:.3f} | {scores['mrr']:.3f} | {scores['ms']:.0f} |"
         )
     return "\n".join(lines)
 
