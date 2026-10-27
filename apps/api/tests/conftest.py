@@ -1,10 +1,12 @@
 """Shared fixtures for integration tests against the local services (`make services-up`)."""
 
 import asyncio
+import json
 import os
 import uuid
 import zlib
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
+from typing import cast
 
 import asyncpg
 import pytest
@@ -13,6 +15,7 @@ from pydantic import SecretStr
 from qdrant_client import QdrantClient
 
 from investigation_engine.core.config import Settings
+from investigation_engine.llm.client import Completion, Message, ToolCall
 from investigation_engine.main import create_app
 from investigation_engine.retrieval.embeddings import Embedding, SparseVector
 
@@ -43,6 +46,43 @@ class FakeEmbedder:
             dense=dense,
             sparse=SparseVector(indices=word_ids, values=[1.0] * len(word_ids)),
         )
+
+
+class ScriptedLlm:
+    """Stand-in for the LLM: returns scripted completions in order and records each call."""
+
+    def __init__(self, *completions: Completion) -> None:
+        self._completions = list(completions)
+        self.calls: list[dict[str, object]] = []
+
+    async def complete(
+        self,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[Mapping[str, object]] = (),
+        force_tool: str | None = None,
+    ) -> Completion:
+        self.calls.append({"messages": list(messages), "tools": list(tools), "force": force_tool})
+        return self._completions.pop(0)
+
+    def last_message(self, call: int) -> Mapping[str, object]:
+        """The newest message the model received in that call, e.g. a tool result."""
+        messages = cast(list[Message], self.calls[call]["messages"])
+        return messages[-1]
+
+    def tool_names(self, call: int) -> list[object]:
+        tools = cast(list[dict[str, dict[str, object]]], self.calls[call]["tools"])
+        return [tool["function"]["name"] for tool in tools]
+
+
+def tool_call(name: str, arguments: dict[str, object], call_id: str = "call_1") -> Completion:
+    """A completion in which the model calls one tool."""
+    return Completion(
+        content=None,
+        tool_calls=[ToolCall(id=call_id, name=name, arguments=json.dumps(arguments))],
+        model="scripted",
+        total_tokens=100,
+    )
 
 
 async def _reset_test_database() -> None:
@@ -85,14 +125,22 @@ def test_settings() -> Settings:
         qdrant_url=TEST_QDRANT_URL,
         qdrant_api_key=None,
         qdrant_collection=f"test_{uuid.uuid4().hex}",
+        # Never a real key from .env: tests must not call a paid API.
+        llm_api_key=None,
     )
 
 
 @pytest.fixture
-def client(test_settings: Settings) -> Iterator[TestClient]:
+def llm() -> ScriptedLlm | None:
+    """No LLM by default; a test module overrides this fixture to script one."""
+    return None
+
+
+@pytest.fixture
+def client(test_settings: Settings, llm: ScriptedLlm | None) -> Iterator[TestClient]:
     """The app against a fresh test database and Qdrant collection, with the fake embedder."""
     asyncio.run(_reset_test_database())
-    app = create_app(test_settings, embedder=FakeEmbedder())
+    app = create_app(test_settings, embedder=FakeEmbedder(), llm=llm)
     with TestClient(app) as test_client:  # `with` runs the app's startup and shutdown
         yield test_client
     qdrant = QdrantClient(url=TEST_QDRANT_URL)

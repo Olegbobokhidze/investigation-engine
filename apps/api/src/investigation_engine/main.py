@@ -14,19 +14,24 @@ from fastapi.responses import JSONResponse
 
 # Importing the models registers their tables with Base.metadata before create_tables runs.
 import investigation_engine.documents.models  # noqa: F401
-from investigation_engine.api.routes import documents, health
+from investigation_engine.api.routes import documents, health, investigations
 from investigation_engine.core.config import Settings, get_settings
 from investigation_engine.core.database import Database
 from investigation_engine.core.errors import AppError
 from investigation_engine.core.logging import configure_logging
+from investigation_engine.llm.client import ChatModel, LlmClient
 from investigation_engine.retrieval.embeddings import Embedder, TextEmbedder
+from investigation_engine.retrieval.search import FusionSettings, Retriever
 from investigation_engine.retrieval.vector_store import VectorStore
 
 
 def create_app(
-    settings: Settings | None = None, *, embedder: TextEmbedder | None = None
+    settings: Settings | None = None,
+    *,
+    embedder: TextEmbedder | None = None,
+    llm: ChatModel | None = None,
 ) -> FastAPI:
-    """Builds the app. Tests pass `embedder` to skip loading the real models."""
+    """Builds the app. Tests pass `embedder` and `llm` to skip the real models."""
     settings = settings or get_settings()
     configure_logging(settings.log_level, json=settings.env == "prod")
 
@@ -40,12 +45,20 @@ def create_app(
         )
         vector_store = VectorStore.from_settings(settings)
         await vector_store.ensure_collection(text_embedder.dense_size)
+        # Without an API key the app still serves documents; investigations answer 503.
+        llm_client = None if llm or not settings.llm_api_key else LlmClient.from_settings(settings)
 
         app.state.settings = settings
         app.state.database = database
         app.state.embedder = text_embedder
         app.state.vector_store = vector_store
+        app.state.retriever = Retriever(
+            text_embedder, vector_store, FusionSettings.from_settings(settings)
+        )
+        app.state.llm = llm or llm_client
         yield
+        if llm_client:
+            await llm_client.close()
         await vector_store.close()
         await database.dispose()
 
@@ -58,6 +71,7 @@ def create_app(
     )
     app.include_router(health.router)
     app.include_router(documents.router)
+    app.include_router(investigations.router)
 
     @app.exception_handler(AppError)
     async def handle_app_error(_: Request, exc: AppError) -> JSONResponse:

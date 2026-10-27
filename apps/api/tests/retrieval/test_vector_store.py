@@ -70,3 +70,19 @@ async def test_delete_document_removes_only_its_chunks(store: VectorStore) -> No
     await store.delete_document("doc_a")
 
     assert await store.count() == 1
+
+
+async def test_document_chunks_returns_one_documents_first_chunks_in_order(
+    store: VectorStore,
+) -> None:
+    await store.upsert(
+        [_record("doc_a", 2), _record("doc_a", 0), _record("doc_a", 1), _record("doc_b", 0)],
+        [_embedding(0.1), _embedding(0.2), _embedding(0.3), _embedding(0.4)],
+    )
+
+    chunks = await store.document_chunks("doc_a", limit=2)
+
+    assert [(chunk.document_id, chunk.chunk_index) for chunk in chunks] == [
+        ("doc_a", 0),
+        ("doc_a", 1),
+    ]

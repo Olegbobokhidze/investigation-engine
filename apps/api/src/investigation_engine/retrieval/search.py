@@ -4,6 +4,7 @@ import asyncio
 from dataclasses import dataclass
 from typing import Literal
 
+from investigation_engine.core.config import Settings
 from investigation_engine.retrieval.embeddings import TextEmbedder
 from investigation_engine.retrieval.fusion import weighted_rrf
 from investigation_engine.retrieval.vector_store import ChunkRecord, ScoredChunk, VectorStore
@@ -26,6 +27,15 @@ class FusionSettings:
     rrf_k: int
     dense_weight: float
     sparse_weight: float
+
+    @classmethod
+    def from_settings(cls, settings: Settings) -> "FusionSettings":
+        return cls(
+            candidates=settings.search_candidates,
+            rrf_k=settings.rrf_k,
+            dense_weight=settings.rrf_dense_weight,
+            sparse_weight=settings.rrf_sparse_weight,
+        )
 
 
 class Retriever:
@@ -51,6 +61,10 @@ class Retriever:
             self._vector_store.search_sparse(embedding.sparse, self._fusion.candidates),
         )
         return self._fuse(dense, sparse)[:limit]
+
+    async def read_document(self, document_id: str, limit: int) -> list[ChunkRecord]:
+        """A document's first `limit` chunks in order, for reading a passage in context."""
+        return await self._vector_store.document_chunks(document_id, limit)
 
     def _fuse(self, dense: list[ScoredChunk], sparse: list[ScoredChunk]) -> list[SearchHit]:
         records = {hit.point_id: hit.record for hit in [*dense, *sparse]}

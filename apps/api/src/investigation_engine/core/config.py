@@ -34,11 +34,19 @@ class Settings(BaseSettings):
     qdrant_api_key: SecretStr | None = None
     qdrant_collection: str = "chunks"
 
-    # LLM
+    # LLM: any OpenAI-compatible chat completions API; Groq by default. The fallback model
+    # answers when the main one keeps failing (e.g. its daily token quota is used up).
     llm_api_key: SecretStr | None = None
-    llm_model: str = "llama-3.3-70b-versatile"
-    llm_timeout_s: float = Field(default=30.0, gt=0)
+    llm_base_url: str = "https://api.groq.com/openai/v1"
+    llm_model: str = "openai/gpt-oss-120b"
+    llm_fallback_model: str | None = "openai/gpt-oss-20b"
+    llm_timeout_s: float = Field(default=60.0, gt=0)
     llm_max_retries: int = Field(default=3, ge=0)
+
+    # Investigation agent: the most LLM turns (search or answer) before it must answer, and
+    # how many passages one search returns. Both bound the tokens a question costs.
+    agent_max_turns: int = Field(default=4, gt=0)
+    agent_search_limit: int = Field(default=6, gt=0)
 
     # Embeddings. BGE models are trained with this instruction in front of search queries
     # (not passages); fastembed doesn't add it, so we do.

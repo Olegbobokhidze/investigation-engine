@@ -63,6 +63,13 @@ class EmptyDocumentError(InvalidInputError):
     code = "empty_document"
 
 
+class NotConfiguredError(AppError):
+    """A feature needs a setting that isn't set (e.g. the LLM API key in local dev)."""
+
+    status_code = 503
+    code = "not_configured"
+
+
 class UpstreamError(AppError):
     """An external dependency (LLM, vector store) failed after retries."""
 

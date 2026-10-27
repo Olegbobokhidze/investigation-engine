@@ -149,6 +149,23 @@ class VectorStore:
             for point in response.points
         ]
 
+    async def document_chunks(self, document_id: str, limit: int) -> list[ChunkRecord]:
+        """The first `limit` chunks of one document, in reading order."""
+        conditions = models.Filter(
+            must=[
+                models.FieldCondition(
+                    key="document_id", match=models.MatchValue(value=document_id)
+                ),
+                models.FieldCondition(key="chunk_index", range=models.Range(lt=limit)),
+            ]
+        )
+        async with _upstream_errors():
+            points, _ = await self._client.scroll(
+                self.collection, scroll_filter=conditions, limit=limit, with_payload=True
+            )
+        records = [ChunkRecord(**point.payload or {}) for point in points]
+        return sorted(records, key=lambda record: record.chunk_index)
+
     async def count(self) -> int:
         async with _upstream_errors():
             result = await self._client.count(self.collection, exact=True)

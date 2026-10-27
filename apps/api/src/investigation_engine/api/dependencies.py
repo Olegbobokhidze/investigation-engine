@@ -12,9 +12,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from investigation_engine.core.config import Settings
 from investigation_engine.core.database import Database
+from investigation_engine.core.errors import NotConfiguredError
 from investigation_engine.documents.service import DocumentService
 from investigation_engine.ingestion.chunking import chunker_from_settings
+from investigation_engine.investigation.agent import Investigator
+from investigation_engine.llm.client import ChatModel
 from investigation_engine.retrieval.embeddings import TextEmbedder
+from investigation_engine.retrieval.search import Retriever
 from investigation_engine.retrieval.vector_store import VectorStore
 
 
@@ -36,3 +40,20 @@ def get_document_service(request: Request, session: SessionDependency) -> Docume
 
 
 DocumentServiceDependency = Annotated[DocumentService, Depends(get_document_service)]
+
+
+def get_investigator(request: Request) -> Investigator:
+    settings: Settings = request.app.state.settings
+    llm: ChatModel | None = request.app.state.llm
+    if llm is None:
+        raise NotConfiguredError("Investigations need an LLM API key (LLM_API_KEY).")
+    retriever: Retriever = request.app.state.retriever
+    return Investigator(
+        llm,
+        retriever,
+        max_turns=settings.agent_max_turns,
+        search_limit=settings.agent_search_limit,
+    )
+
+
+InvestigatorDependency = Annotated[Investigator, Depends(get_investigator)]
