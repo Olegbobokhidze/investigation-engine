@@ -21,7 +21,7 @@ import json
 import statistics
 import time
 from collections.abc import Callable
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 import pyarrow.parquet as parquet
@@ -63,6 +63,9 @@ class EvalQuestion:
     question: str
     answer: str | None  # None: the corpus can't answer it
     gold_document_ids: list[str]
+    # Exact strings an answer needs to have seen (Northwind only); the chunking
+    # evaluation checks they are in the retrieved chunks.
+    key_facts: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -80,12 +83,16 @@ CONFIGS = {
 }
 
 
-def load_questions() -> list[EvalQuestion]:
-    northwind = [
+def load_northwind_questions() -> list[EvalQuestion]:
+    return [
         EvalQuestion(**json.loads(line))
         for line in NORTHWIND_QUESTIONS.read_text().splitlines()
         if line.strip()
     ]
+
+
+def load_questions() -> list[EvalQuestion]:
+    northwind = load_northwind_questions()
     table = parquet.read_table(
         download(), columns=["id", "question", "answer", "supporting_facts"]
     ).to_pylist()

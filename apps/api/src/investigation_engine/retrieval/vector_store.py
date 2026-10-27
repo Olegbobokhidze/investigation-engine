@@ -176,5 +176,10 @@ class VectorStore:
             result = await self._client.count(self.collection, exact=True)
         return result.count
 
+    async def delete_collection(self) -> None:
+        """Drops the whole collection; for temporary collections in evaluations."""
+        async with _upstream_errors():
+            await self._client.delete_collection(self.collection)
+
     async def close(self) -> None:
         await self._client.close()

@@ -3,10 +3,54 @@
 Multi-hop, evidence-grounded question answering over large document collections:
 hybrid retrieval, agentic RAG with citations, abstention, and contradiction detection.
 
-**Live demo:** https://investigation-engine-xi.vercel.app — the web app currently runs against
-a mocked API; the backend is being connected.
+**Live demo:** https://investigation-engine-xi.vercel.app (API:
+https://13-53-155-129.sslip.io/health). Ask about the Northwind Pay incident ("Who was the
+primary on-call engineer when INC-0412 started?", "When was CHG-2291 deployed?") or any of
+the 66,581 HotpotQA Wikipedia paragraphs.
 
-> Work in progress. Architecture, evaluation and deployment docs will be added as the system lands.
+**Evaluation:** [`docs/evaluation-report.md`](docs/evaluation-report.md).
+
+## How it works
+
+```
+question
+  │
+  ├─ 1. plan        the LLM splits it into 1–4 sub-questions          (decomposition)
+  ├─ 2. search      hybrid search per sub-question: dense (bge-small) + BM25 in Qdrant,
+  │                 fused with our weighted Reciprocal Rank Fusion      (retrieval/fusion.py)
+  ├─ 3. investigate tool-calling loop, at most 4 turns: the LLM reads numbered passages and
+  │                 calls search_documents (often with a name it just learned: the second
+  │                 hop), get_document, or submit_answer                (investigation/agent.py)
+  └─ 4. verify      citations must point at passages the LLM was shown; an answer with none
+                    becomes an abstention; a conflict must cite both sides
+                                                                        (investigation/citations.py)
+```
+
+- **Grounded:** every sentence cites passages as `[n]`; the UI links each to its source.
+- **Abstains** (`insufficient_evidence`) when the documents don't answer the question.
+- **Flags contradictions:** when sources disagree, the answer gives both values and each
+  conflict names who says what.
+- **LLM errors:** timeouts, retries with capped exponential backoff and `Retry-After`, a
+  fallback model when the main one keeps failing, then a 502 with a readable message
+  (`llm/client.py`). The client speaks the OpenAI-compatible API (Groq by default).
+
+**Ingestion:** PDF, DOCX, Markdown and TXT uploads are parsed, normalized, deduplicated by
+content hash (409 on a duplicate), split by structure-aware chunking and indexed in Postgres
+(source of truth) and Qdrant (search index). Documents can be added, replaced and deleted;
+the HotpotQA and Northwind datasets are read-only (403).
+
+**Architecture:** a modular monolith in layers, HTTP (`api/`) → services → adapters
+(Qdrant, Postgres, LLM). Services depend on protocols (`ChatModel`, `TextEmbedder`,
+`Corpus`, `Chunker`), so the LLM, embedder or vector store is swapped, or faked in tests, in
+one place.
+
+| Endpoint | |
+|---|---|
+| `POST /investigations` | `{question}` → answer, cited sources, conflicts, steps |
+| `GET /documents?search=&page=&pageSize=` | paginated document list |
+| `POST /documents` | multipart `files`: one result per file (indexed, duplicate or failed) |
+| `PUT /documents/{id}` | multipart `file`: replace an uploaded document |
+| `DELETE /documents/{id}` | delete an uploaded document and its chunks |
 
 ## Repository layout
 
@@ -69,6 +113,29 @@ Secrets: the API's settings (`DATABASE_URL`, `QDRANT_URL`, `QDRANT_API_KEY`, `LL
 `CORS_ORIGINS`) live only in `/opt/investigation-engine/.env` on the host (mode 600); GitHub
 holds only the host address and its SSH key. One-time host setup:
 `apps/api/deploy/bootstrap.sh`.
+
+## Evaluation
+
+```bash
+make eval-retrieval   # search configurations on 200 HotpotQA questions
+make eval-chunking    # chunking strategies on Northwind (local Qdrant)
+make eval-answers     # agent vs single-shot on 45 questions (uses LLM quota; resumable)
+make eval-report      # metrics from the recorded answers, no LLM calls
+```
+
+Results and failure analysis: [`docs/evaluation-report.md`](docs/evaluation-report.md).
+
+## Known limitations
+
+- **Free-tier LLM.** Groq's free tier allows 8,000 tokens per minute and a daily token
+  quota; an investigation uses about 4,000 tokens, so bursts of questions wait for the limit
+  and a long evaluation run spans more than one day.
+- **PDF paragraphs.** pypdf doesn't preserve paragraph breaks inside a page, so a PDF page's
+  text is chunked by sentences rather than by paragraph.
+- **No authentication.** Anyone with the URL can upload and delete *uploaded* documents
+  (datasets are read-only). Fine for a demo, not for production.
+- **Single region, single instance.** One EC2 host in Stockholm talks to Neon and Qdrant in
+  Frankfurt; there is no replica.
 
 ## Quality gates
 

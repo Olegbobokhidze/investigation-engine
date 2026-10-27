@@ -1,0 +1,86 @@
+[
+  {
+    "config": {
+      "strategy": "fixed",
+      "max_words": 60,
+      "overlap_words": 12
+    },
+    "name": "fixed 60 words, overlap 12",
+    "northwind_chunks": 25,
+    "recall_at_3": 0.7745098039215687,
+    "recall_at_5": 0.7745098039215687,
+    "mrr": 0.9411764705882353,
+    "fact_recall_at_5": 0.8235294117647058,
+    "context_words_at_5": 277.94117647058823
+  },
+  {
+    "config": {
+      "strategy": "structured",
+      "max_words": 60,
+      "overlap_words": 0
+    },
+    "name": "structured 60 words",
+    "northwind_chunks": 41,
+    "recall_at_3": 0.8333333333333334,
+    "recall_at_5": 0.8333333333333334,
+    "mrr": 0.9411764705882353,
+    "fact_recall_at_5": 0.8529411764705882,
+    "context_words_at_5": 194.7058823529412
+  },
+  {
+    "config": {
+      "strategy": "fixed",
+      "max_words": 120,
+      "overlap_words": 24
+    },
+    "name": "fixed 120 words, overlap 24",
+    "northwind_chunks": 13,
+    "recall_at_3": 0.803921568627451,
+    "recall_at_5": 0.8627450980392157,
+    "mrr": 0.9117647058823529,
+    "fact_recall_at_5": 0.8823529411764706,
+    "context_words_at_5": 481.1764705882353
+  },
+  {
+    "config": {
+      "strategy": "structured",
+      "max_words": 120,
+      "overlap_words": 0
+    },
+    "name": "structured 120 words",
+    "northwind_chunks": 35,
+    "recall_at_3": 0.8333333333333334,
+    "recall_at_5": 0.8627450980392157,
+    "mrr": 0.9411764705882353,
+    "fact_recall_at_5": 0.8823529411764706,
+    "context_words_at_5": 305.29411764705884
+  },
+  {
+    "config": {
+      "strategy": "fixed",
+      "max_words": 200,
+      "overlap_words": 40
+    },
+    "name": "fixed 200 words, overlap 40",
+    "northwind_chunks": 11,
+    "recall_at_3": 0.803921568627451,
+    "recall_at_5": 0.8823529411764706,
+    "mrr": 0.9117647058823529,
+    "fact_recall_at_5": 0.9117647058823529,
+    "context_words_at_5": 556.1764705882352
+  },
+  {
+    "config": {
+      "strategy": "structured",
+      "max_words": 200,
+      "overlap_words": 0
+    },
+    "name": "structured 200 words",
+    "northwind_chunks": 34,
+    "recall_at_3": 0.8627450980392157,
+    "recall_at_5": 0.8921568627450981,
+    "mrr": 0.9411764705882353,
+    "fact_recall_at_5": 0.8823529411764706,
+    "context_words_at_5": 354.05882352941177
+  }
+]

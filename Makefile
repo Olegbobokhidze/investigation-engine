@@ -5,7 +5,7 @@ WEB := pnpm --dir apps/web
 
 .DEFAULT_GOAL := help
 .PHONY: help services-up services-down api-install api-dev api-format api-check \
-	data-hotpotqa data-synthetic eval-retrieval eval-answers eval-report web-install web-dev web-format web-check
+	data-hotpotqa data-synthetic eval-retrieval eval-chunking eval-answers eval-report web-install web-dev web-format web-check
 
 help: ## List available targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-15s %s\n", $$1, $$2}'
@@ -41,6 +41,10 @@ data-synthetic: ## Index the synthetic Northwind Pay corpus into the .env servic
 eval-retrieval: ## Compare search configurations on HotpotQA (writes docs/evaluation/)
 	$(API) run python -m investigation_engine.evaluation.retrieval \
 		--output $(CURDIR)/docs/evaluation/retrieval-hotpotqa.json
+
+eval-chunking: ## Compare chunking strategies on Northwind (needs make services-up)
+	$(API) run python -m investigation_engine.evaluation.chunking \
+		--output $(CURDIR)/docs/evaluation/chunking-northwind.json
 
 eval-answers: ## Ask the 45 evaluation questions (resumable; uses LLM quota)
 	$(API) run python -m investigation_engine.evaluation.answers run \
