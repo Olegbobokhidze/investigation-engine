@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { CircleAlert, type LucideIcon } from "lucide-react";
+import { CircleAlert, LoaderCircle, type LucideIcon } from "lucide-react";
 import { useId, type ComponentProps } from "react";
 
 type TextFieldSize = "md" | "lg";
@@ -10,6 +10,8 @@ interface TextFieldProps extends Omit<ComponentProps<"input">, "placeholder" | "
   hint?: string;
   /** Replaces the hint and marks the field invalid. */
   error?: string;
+  /** Shows a spinner at the end of the field, e.g. while a search runs. */
+  isLoading?: boolean;
   size?: TextFieldSize;
 }
 
@@ -36,6 +38,7 @@ export function TextField({
   icon: Icon,
   hint,
   error,
+  isLoading = false,
   size = "md",
   id,
   className,
@@ -56,7 +59,8 @@ export function TextField({
           aria-invalid={error !== undefined || undefined}
           aria-describedby={description === undefined ? undefined : descriptionId}
           className={clsx(
-            "peer block w-full rounded-xl border bg-surface pr-4 text-ellipsis text-ink transition-[border-color,box-shadow] outline-none",
+            "peer block w-full rounded-xl border bg-surface text-ellipsis text-ink transition-[border-color,box-shadow] outline-none",
+            isLoading ? "pr-11" : "pr-4",
             "focus:ring-4 disabled:cursor-not-allowed disabled:border-border disabled:bg-subtle disabled:text-ink-disabled",
             error === undefined
               ? "border-border-strong hover:border-border-hover focus:border-accent focus:ring-accent/12"
@@ -84,6 +88,12 @@ export function TextField({
               error === undefined ? "text-ink-muted group-focus-within:text-accent" : "text-danger",
               classes.icon,
             )}
+          />
+        )}
+        {isLoading && (
+          <LoaderCircle
+            aria-hidden
+            className="pointer-events-none absolute top-1/2 right-4 size-4.5 -translate-y-1/2 animate-spin text-ink-muted motion-reduce:animate-none"
           />
         )}
       </div>

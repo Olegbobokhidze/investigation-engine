@@ -1,4 +1,10 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  type QueryClient,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 import { apiRequest } from "@/shared/api/client";
 
@@ -8,8 +14,38 @@ export const documentsPageSize = 20;
 
 export const documentKeys = {
   all: ["documents"] as const,
-  list: (params: DocumentListParams) => [...documentKeys.all, "list", params] as const,
+  lists: () => [...documentKeys.all, "list"] as const,
+  list: (params: DocumentListParams) => [...documentKeys.lists(), params] as const,
 };
+
+const emptyPage = (page: number): DocumentPage => ({
+  items: [],
+  total: 0,
+  page,
+  pageSize: documentsPageSize,
+});
+
+/**
+ * True when a shorter search inside this one already found nothing. The API matches a
+ * substring of the title or id, so adding characters can't bring results back, and the
+ * request is skipped while the user keeps typing. Uploads and changes invalidate the list
+ * queries, so an empty result from before them is not trusted.
+ */
+export function hasEmptyNarrowerSearch(queryClient: QueryClient, search: string): boolean {
+  const needle = search.toLowerCase();
+  return queryClient
+    .getQueriesData<DocumentPage>({ queryKey: documentKeys.lists() })
+    .some(([queryKey, data]) => {
+      // Keys under documentKeys.lists() are only made by documentKeys.list.
+      const [, , params] = queryKey as ReturnType<typeof documentKeys.list>;
+      return (
+        data?.total === 0 &&
+        params.search !== "" &&
+        needle.includes(params.search.toLowerCase()) &&
+        queryClient.getQueryState(queryKey)?.isInvalidated === false
+      );
+    });
+}
 
 export function listDocuments({ search, page }: DocumentListParams): Promise<DocumentPage> {
   const query = new URLSearchParams({ page: String(page), pageSize: String(documentsPageSize) });
@@ -34,9 +70,13 @@ export function deleteDocument(id: string): Promise<void> {
 }
 
 export function useDocuments(params: DocumentListParams) {
+  const queryClient = useQueryClient();
   return useQuery({
     queryKey: documentKeys.list(params),
-    queryFn: () => listDocuments(params),
+    queryFn: () =>
+      params.search !== "" && hasEmptyNarrowerSearch(queryClient, params.search)
+        ? Promise.resolve(emptyPage(params.page))
+        : listDocuments(params),
     placeholderData: keepPreviousData,
   });
 }

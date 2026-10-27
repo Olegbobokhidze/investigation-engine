@@ -62,6 +62,10 @@ export function DocumentsPage() {
   }
 
   const documentsQuery = useDocuments({ search, page });
+  // Previous rows stay on screen while a new search or page loads (keepPreviousData).
+  const isRefreshing = documentsQuery.isPlaceholderData;
+  // Also while the typed text waits for the debounce, so the field reacts at once.
+  const isSearching = isRefreshing || searchInput.trim() !== debouncedSearch;
   const uploadMutation = useUploadDocuments();
   const replaceMutation = useReplaceDocument();
   const deleteMutation = useDeleteDocument();
@@ -116,38 +120,42 @@ export function DocumentsPage() {
         label="Search by name or ID"
         icon={Search}
         autoComplete="off"
+        isLoading={isSearching}
         value={searchInput}
         onChange={(event) => {
           setSearchInput(event.target.value);
         }}
-        className="max-w-110"
       />
 
       {changeError && <ErrorNotice title="Couldn’t change the document" error={changeError} />}
 
       {documentsQuery.error ? (
         <ErrorNotice title="Couldn’t load documents" error={documentsQuery.error} />
-      ) : documentsQuery.data ? (
+      ) : (
         // Takes the remaining height; the table scrolls inside it. On short screens the
         // minimum height wins and <main> scrolls instead, so the table never gets squashed.
         <div className="flex min-h-72 flex-1 flex-col gap-4">
+          <p role="status" className="sr-only">
+            {documentsQuery.isPending || isRefreshing ? "Loading documents…" : ""}
+          </p>
           <DocumentTable
-            documents={documentsQuery.data.items}
+            documents={documentsQuery.data?.items ?? null}
+            isRefreshing={isRefreshing}
             onReplace={(corpusDocument, file) => {
               replaceMutation.mutate({ id: corpusDocument.id, file });
             }}
             onDelete={requestDelete}
             busyDocumentId={busyDocumentId}
           />
-          <Pagination
-            page={page}
-            pageSize={documentsPageSize}
-            total={documentsQuery.data.total}
-            onPageChange={changePage}
-          />
+          {documentsQuery.data && (
+            <Pagination
+              page={page}
+              pageSize={documentsPageSize}
+              total={documentsQuery.data.total}
+              onPageChange={changePage}
+            />
+          )}
         </div>
-      ) : (
-        <p className="text-md text-ink-muted">Loading documents…</p>
       )}
 
       <ConfirmDialog
