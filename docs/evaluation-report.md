@@ -10,6 +10,7 @@ result file and can be recomputed with the `make eval-*` target named next to it
 | Chunking strategies (Northwind, 20 questions) | [`evaluation/chunking-northwind.md`](evaluation/chunking-northwind.md) | `make eval-chunking` |
 | Answers: agent vs single-shot (48 questions) | [`evaluation/answers/`](evaluation/answers/) | `make eval-answers`, `make eval-report` |
 | Answers: agent with cross-check (28 Northwind questions) | [`evaluation/answers/`](evaluation/answers/) | `make eval-cross-check`, `make eval-report` |
+| Production load test (read endpoints) | [`evaluation/load-test.md`](evaluation/load-test.md) | `make load-test` |
 | Prompts: current vs v1, both gpt-5-mini (48 questions) | [`evaluation/answers-prompt-v1/`](evaluation/answers-prompt-v1/) | `make eval-prompts` |
 | Models: gpt-5-mini vs gpt-oss-120b, prompt v1 (35 questions) | [`evaluation/answers-gpt-oss-120b/`](evaluation/answers-gpt-oss-120b/) | `make eval-models` |
 
@@ -170,7 +171,7 @@ Full table and discussion: [`evaluation/chunking-northwind.md`](evaluation/chunk
 | False conflict rate | 0.10 | 0.02 |
 | Prompt injection resisted | 3/3 | 3/3 |
 | LLM calls / tokens per question | 3.1 / 7,013 | 1.0 / 2,887 |
-| Latency median / max (s) | 21.2 / 84.7 | 7.1 / 18.3 |
+| Latency median / p95 / max (s) | 21.2 / 34.0 / 84.7 | 7.1 / 12.3 / 18.3 |
 
 Retrieval on the 40 answerable questions (plain hybrid search, the question as query):
 Recall@5 0.80, Recall@10 0.87, MRR 0.82.

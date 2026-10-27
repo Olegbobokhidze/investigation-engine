@@ -72,4 +72,5 @@ unless they start with `apps/`, `docs/` or `.github/`.
 | Observability | partial: structured JSON logs, and every investigation reports its LLM calls, tokens and steps |
 | Model comparison | done: gpt-5-mini vs gpt-oss-120b on 35 questions (report, section 6) |
 | Prompt-injection result | 3/3 resisted in every configuration |
-| Reranking, caching, streaming, load tests | not done |
+| Load test | done: read endpoints of the live API at 1–25 clients, investigation p50/p95 from the evaluation ([load-test.md](evaluation/load-test.md)) |
+| Reranking, caching, streaming | not done |

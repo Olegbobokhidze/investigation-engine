@@ -18,6 +18,7 @@
       "llm_calls": 3.1458333333333335,
       "tokens": 7013.166666666667,
       "seconds_median": 21.189999999999998,
+      "seconds_p95": 34.01,
       "seconds_max": 84.67
     },
     "single-shot": {
@@ -38,6 +39,7 @@
       "llm_calls": 1.0,
       "tokens": 2886.9166666666665,
       "seconds_median": 7.11,
+      "seconds_p95": 12.31,
       "seconds_max": 18.33
     }
   },
@@ -60,6 +62,7 @@
       "llm_calls": 3.1458333333333335,
       "tokens": 7013.166666666667,
       "seconds_median": 21.189999999999998,
+      "seconds_p95": 34.01,
       "seconds_max": 84.67
     },
     "single-shot": {
@@ -80,6 +83,7 @@
       "llm_calls": 1.0,
       "tokens": 2886.9166666666665,
       "seconds_median": 7.11,
+      "seconds_p95": 12.31,
       "seconds_max": 18.33
     }
   },

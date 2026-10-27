@@ -236,8 +236,12 @@ Full method, tables and failure analysis: [docs/evaluation-report.md](docs/evalu
 | Prompt injection resisted | 3/3 | 3/3 |
 | Citation recall (gold documents cited) | **0.88** | 0.82 |
 | Tokens / cost per question | 7.0k / ~$0.006 | 2.9k / ~$0.0025 |
-| Latency median | 21 s | 7 s |
+| Latency p50 / p95 | 21 s / 34 s | 7 s / 12 s |
 | Retrieval Recall@10 / MRR (plain hybrid search) | 0.87 / 0.82 | |
+
+Load test of the live API ([`docs/evaluation/load-test.md`](docs/evaluation/load-test.md)):
+`/health` serves about 90 requests/s at 10 clients with p95 122 ms; the document title
+search is the bottleneck (p95 763 ms at 10 clients, 6 s at 25).
 
 Also measured: a prompt revision driven by the failure analysis (same correctness, fewer
 tokens, shorter abstentions), an answer cross-check (rejected) and gpt-5-mini against
@@ -286,6 +290,7 @@ make eval-cross-check # the agent with the answer cross-check, 28 Northwind ques
 make eval-report      # metrics from the recorded answers (no LLM)
 make eval-prompts     # the current prompt vs prompt v1 (no LLM)
 make eval-models      # gpt-5-mini vs gpt-oss-120b, same prompt (no LLM)
+make load-test        # latency percentiles of the live API's read endpoints
 ```
 
 ## Deployment and cost
@@ -346,5 +351,6 @@ The repository is set up for AI coding agents, and every AI-assisted change is l
 | [docs/evaluation/northwind-ground-truth.md](docs/evaluation/northwind-ground-truth.md) | the synthetic corpus: planted facts, chains, conflicts, gaps, injection |
 | [docs/evaluation/retrieval-hotpotqa.md](docs/evaluation/retrieval-hotpotqa.md) | search configurations compared |
 | [docs/evaluation/chunking-northwind.md](docs/evaluation/chunking-northwind.md) | chunking strategies compared |
+| [docs/evaluation/load-test.md](docs/evaluation/load-test.md) | load test of the live API, latency percentiles, bottlenecks |
 | [docs/ai-usage.md](docs/ai-usage.md) | how AI tools were used and what the author decided |
 | [AGENTS.md](AGENTS.md) | conventions for humans and coding agents |

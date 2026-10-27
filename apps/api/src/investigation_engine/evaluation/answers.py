@@ -33,7 +33,12 @@ from investigation_engine.core.config import Settings, get_settings
 from investigation_engine.core.errors import UpstreamError
 from investigation_engine.core.logging import configure_logging
 from investigation_engine.datasets.hotpotqa import document_id, download
-from investigation_engine.evaluation.metrics import recall_at_k, reciprocal_rank, unique_in_order
+from investigation_engine.evaluation.metrics import (
+    percentile,
+    recall_at_k,
+    reciprocal_rank,
+    unique_in_order,
+)
 from investigation_engine.investigation.agent import Investigator
 from investigation_engine.investigation.models import Investigation
 from investigation_engine.llm.client import ChatModel, LlmClient, system_message, user_message
@@ -327,6 +332,7 @@ def score(records: list[dict[str, object]]) -> dict[str, float | None]:
         "llm_calls": statistics.mean(float(str(r["llm_calls"])) for r in records),
         "tokens": statistics.mean(float(str(r["total_tokens"])) for r in records),
         "seconds_median": statistics.median(seconds),
+        "seconds_p95": percentile(seconds, 0.95),
         "seconds_max": max(seconds),
     }
 
@@ -374,6 +380,7 @@ ROWS = [
     ("LLM calls per question", "llm_calls"),
     ("Tokens per question", "tokens"),
     ("Latency median (s)", "seconds_median"),
+    ("Latency p95 (s)", "seconds_p95"),
     ("Latency max (s)", "seconds_max"),
 ]
 
@@ -381,7 +388,7 @@ ROWS = [
 def _cell(value: float | None, key: str) -> str:
     if value is None:
         return "n/a"
-    if key in {"llm_calls", "seconds_median", "seconds_max"}:
+    if key in {"llm_calls", "seconds_median", "seconds_p95", "seconds_max"}:
         return f"{value:.1f}"
     if key in {"questions", "tokens"}:
         return f"{value:,.0f}"

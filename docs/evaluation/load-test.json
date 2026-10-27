@@ -1,0 +1,62 @@
+[
+  {
+    "endpoint": "health",
+    "concurrency": 1,
+    "requests": 200,
+    "errors": 0,
+    "requests_per_second": 10.6,
+    "p50_ms": 94,
+    "p95_ms": 95,
+    "p99_ms": 98
+  },
+  {
+    "endpoint": "health",
+    "concurrency": 10,
+    "requests": 200,
+    "errors": 0,
+    "requests_per_second": 89.8,
+    "p50_ms": 96,
+    "p95_ms": 122,
+    "p99_ms": 336
+  },
+  {
+    "endpoint": "health",
+    "concurrency": 25,
+    "requests": 200,
+    "errors": 0,
+    "requests_per_second": 74.6,
+    "p50_ms": 320,
+    "p95_ms": 389,
+    "p99_ms": 396
+  },
+  {
+    "endpoint": "documents search",
+    "concurrency": 1,
+    "requests": 200,
+    "errors": 0,
+    "requests_per_second": 3.0,
+    "p50_ms": 307,
+    "p95_ms": 369,
+    "p99_ms": 434
+  },
+  {
+    "endpoint": "documents search",
+    "concurrency": 10,
+    "requests": 200,
+    "errors": 0,
+    "requests_per_second": 17.9,
+    "p50_ms": 536,
+    "p95_ms": 763,
+    "p99_ms": 1056
+  },
+  {
+    "endpoint": "documents search",
+    "concurrency": 25,
+    "requests": 200,
+    "errors": 1,
+    "requests_per_second": 4.6,
+    "p50_ms": 1180,
+    "p95_ms": 6208,
+    "p99_ms": 7061
+  }
+]
