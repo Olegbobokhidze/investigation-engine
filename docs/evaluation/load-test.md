@@ -50,6 +50,9 @@ Investigations, from the evaluation records ([report, section 6](../evaluation-r
 
 - A trigram index (`pg_trgm`, GIN on `title`) would turn the title scan into an index lookup;
   the count could be capped or estimated for broad searches.
+- Done since: the web app skips a search request when a shorter search inside it already
+  found nothing, since a substring match can't find more with more characters
+  (`apps/web/src/features/documents/api.ts`); this removes requests, not the scan.
 - More uvicorn workers would raise `/health`-style throughput, but each worker loads its own
   copy of the embedding models (about 500 MB), so a 2 GB host fits two.
 - Investigations: streaming the steps to the UI would change perceived latency, not the

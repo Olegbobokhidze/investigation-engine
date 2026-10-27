@@ -17,7 +17,10 @@ step is taken, then one `result` event with the body `POST /investigations` retu
 through an `on_step` callback; the route puts them on a queue and writes them out. If the
 client disconnects, the investigation task is cancelled, so it stops spending LLM credit.
 The web app reads the stream with `fetch` and shows the steps live
-(`apps/web/src/shared/api/serverSentEvents.ts`).
+(`apps/web/src/shared/api/serverSentEvents.ts`), with an indicator of the current activity
+(planning, searching, writing). The answer arrives whole and already verified; the UI writes
+it out a word at a time (`apps/web/src/shared/hooks/useRevealedText.ts`), which paces the
+display only and is skipped under reduced motion.
 
 ## Alternatives considered
 
@@ -36,7 +39,7 @@ The web app reads the stream with `fetch` and shows the steps live
 `apps/api/tests/api/test_investigations.py` (steps then result; a provider failure as an
 `error` event), `apps/api/tests/investigation/test_agent.py` (every step is reported, in
 order), `apps/web/src/shared/api/serverSentEvents.test.ts` (events split across network
-chunks). Checked against the running API: the steps arrived 13 seconds before the result.
+chunks), `apps/web/src/shared/hooks/useRevealedText.test.ts` (pacing, reduced motion). Checked against the running API: the steps arrived 13 seconds before the result.
 
 ## Consequences
 

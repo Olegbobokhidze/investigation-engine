@@ -35,6 +35,7 @@ is shown.
 | **Ingest** | upload, replace and delete through the UI; parse, normalize, dedup by SHA-256, structure-aware chunking, dense + BM25 embeddings; datasets are read-only |
 | **Search** | hybrid: dense (bge-small) and BM25 in Qdrant, fused with our weighted Reciprocal Rank Fusion; an optional cross-encoder reranker (measured, off by default) |
 | **Answer** | a plan-then-act agent with tool calling (`search_documents`, `get_document`, `submit_answer`), then a citation check in code: answered, conflicting or abstained |
+| **UI** | ask a question and watch the agent's steps arrive live; the verified answer is written out with clickable citations, conflicts and sources; browse, search, upload, replace and delete documents |
 | **Evaluation** | 48 questions (simple, multi-hop, contradictory, unanswerable, prompt injection); compared: agent vs single-shot, two prompts, two models, a cross-check step, 5 search and 6 chunking configurations |
 | **Stack** | FastAPI + Pydantic (Python 3.12, mypy strict) · React 19 + TypeScript · Postgres (Neon) · Qdrant Cloud · gpt-5-mini on Azure · EC2 + Caddy · Vercel |
 
