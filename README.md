@@ -8,7 +8,9 @@ https://13-53-155-129.sslip.io/health). Ask about the Northwind Pay incident ("W
 primary on-call engineer when INC-0412 started?", "When was CHG-2291 deployed?") or any of
 the 66,581 HotpotQA Wikipedia paragraphs.
 
-**Evaluation:** [`docs/evaluation-report.md`](docs/evaluation-report.md).
+**Evaluation:** [`docs/evaluation-report.md`](docs/evaluation-report.md). **Design decisions** with
+their evidence: [`docs/decisions/`](docs/decisions/). **Every requirement** mapped to code,
+tests and evidence: [`docs/requirements.md`](docs/requirements.md).
 
 ## How it works
 
@@ -29,7 +31,10 @@ question
 - **Grounded:** every sentence cites passages as `[n]`; the UI links each to its source.
 - **Abstains** (`insufficient_evidence`) when the documents don't answer the question.
 - **Flags contradictions:** when sources disagree, the answer gives both values and each
-  conflict names who says what.
+  conflict names who says what. An optional cross-check (`AGENT_CROSS_CHECK`) searches
+  once more with the answer's own claim and makes the LLM compare it with every passage.
+- **Treats documents as data:** passages are quoted, never obeyed; the evaluation includes
+  a document with a planted prompt injection.
 - **LLM errors:** timeouts, retries with capped exponential backoff and `Retry-After`, a
   fallback model when the main one keeps failing, then a 502 with a readable message
   (`llm/client.py`). The client speaks the OpenAI-compatible API (Groq by default).
@@ -46,7 +51,7 @@ one place.
 
 | Endpoint | |
 |---|---|
-| `POST /investigations` | `{question}` → answer, cited sources, conflicts, steps |
+| `POST /investigations` | `{question}` → answer, cited sources, conflicts, steps; 429 past the daily cap |
 | `GET /documents?search=&page=&pageSize=` | paginated document list |
 | `POST /documents` | multipart `files`: one result per file (indexed, duplicate or failed) |
 | `PUT /documents/{id}` | multipart `file`: replace an uploaded document |
@@ -90,7 +95,7 @@ Two corpora, both loaded as read-only `dataset` documents into the services in
 
 ```bash
 make data-hotpotqa    # 66,581 HotpotQA paragraphs (~45 min on a laptop CPU)
-make data-synthetic   # 11 Northwind Pay documents in PDF, DOCX, Markdown and TXT
+make data-synthetic   # 12 Northwind Pay documents in PDF, DOCX, Markdown and TXT
 ```
 
 - **HotpotQA** — every distinct paragraph of the
@@ -119,7 +124,8 @@ holds only the host address and its SSH key. One-time host setup:
 ```bash
 make eval-retrieval   # search configurations on 200 HotpotQA questions
 make eval-chunking    # chunking strategies on Northwind (local Qdrant)
-make eval-answers     # agent vs single-shot on 45 questions (uses LLM quota; resumable)
+make eval-answers     # agent vs single-shot on 48 questions (uses LLM quota; resumable)
+make eval-cross-check # the agent with the answer cross-check, 28 Northwind questions
 make eval-report      # metrics from the recorded answers, no LLM calls
 ```
 
@@ -129,7 +135,9 @@ Results and failure analysis: [`docs/evaluation-report.md`](docs/evaluation-repo
 
 - **Free-tier LLM.** Groq's free tier allows 8,000 tokens per minute and a daily token
   quota; an investigation uses about 4,000 tokens, so bursts of questions wait for the limit
-  and a long evaluation run spans more than one day.
+  and a long evaluation run spans more than one day. So the demo doesn't run dry, the API
+  allows 20 investigations per visitor IP and 40 in total per UTC day (`core/rate_limit.py`;
+  counts are in memory, so a restart resets them).
 - **PDF paragraphs.** pypdf doesn't preserve paragraph breaks inside a page, so a PDF page's
   text is chunked by sentences rather than by paragraph.
 - **No authentication.** Anyone with the URL can upload and delete *uploaded* documents

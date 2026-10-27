@@ -1,0 +1,19 @@
+name: Docs
+
+# Runs on every change, not only to docs: renaming a file or a make target can make the
+# docs wrong without touching them.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # Same check as `make docs-check`; the script needs only the standard library.
+      - run: python scripts/check_docs.py

@@ -6,12 +6,12 @@
       "overlap_words": 12
     },
     "name": "fixed 60 words, overlap 12",
-    "northwind_chunks": 25,
-    "recall_at_3": 0.7745098039215687,
-    "recall_at_5": 0.7745098039215687,
-    "mrr": 0.9411764705882353,
-    "fact_recall_at_5": 0.8235294117647058,
-    "context_words_at_5": 277.94117647058823
+    "northwind_chunks": 27,
+    "recall_at_3": 0.7833333333333333,
+    "recall_at_5": 0.7833333333333333,
+    "mrr": 0.95,
+    "fact_recall_at_5": 0.825,
+    "context_words_at_5": 276.6
   },
   {
     "config": {
@@ -20,12 +20,12 @@
       "overlap_words": 0
     },
     "name": "structured 60 words",
-    "northwind_chunks": 41,
+    "northwind_chunks": 43,
     "recall_at_3": 0.8333333333333334,
-    "recall_at_5": 0.8333333333333334,
-    "mrr": 0.9411764705882353,
-    "fact_recall_at_5": 0.8529411764705882,
-    "context_words_at_5": 194.7058823529412
+    "recall_at_5": 0.8583333333333333,
+    "mrr": 0.925,
+    "fact_recall_at_5": 0.875,
+    "context_words_at_5": 199.1
   },
   {
     "config": {
@@ -34,12 +34,12 @@
       "overlap_words": 24
     },
     "name": "fixed 120 words, overlap 24",
-    "northwind_chunks": 13,
-    "recall_at_3": 0.803921568627451,
-    "recall_at_5": 0.8627450980392157,
-    "mrr": 0.9117647058823529,
-    "fact_recall_at_5": 0.8823529411764706,
-    "context_words_at_5": 481.1764705882353
+    "northwind_chunks": 14,
+    "recall_at_3": 0.8083333333333333,
+    "recall_at_5": 0.8583333333333333,
+    "mrr": 0.9,
+    "fact_recall_at_5": 0.875,
+    "context_words_at_5": 483.35
   },
   {
     "config": {
@@ -48,12 +48,12 @@
       "overlap_words": 0
     },
     "name": "structured 120 words",
-    "northwind_chunks": 35,
+    "northwind_chunks": 36,
     "recall_at_3": 0.8333333333333334,
-    "recall_at_5": 0.8627450980392157,
-    "mrr": 0.9411764705882353,
-    "fact_recall_at_5": 0.8823529411764706,
-    "context_words_at_5": 305.29411764705884
+    "recall_at_5": 0.8833333333333333,
+    "mrr": 0.925,
+    "fact_recall_at_5": 0.9,
+    "context_words_at_5": 314.15
   },
   {
     "config": {
@@ -62,12 +62,12 @@
       "overlap_words": 40
     },
     "name": "fixed 200 words, overlap 40",
-    "northwind_chunks": 11,
-    "recall_at_3": 0.803921568627451,
-    "recall_at_5": 0.8823529411764706,
-    "mrr": 0.9117647058823529,
-    "fact_recall_at_5": 0.9117647058823529,
-    "context_words_at_5": 556.1764705882352
+    "northwind_chunks": 12,
+    "recall_at_3": 0.8083333333333333,
+    "recall_at_5": 0.9,
+    "mrr": 0.9,
+    "fact_recall_at_5": 0.925,
+    "context_words_at_5": 557.55
   },
   {
     "config": {
@@ -76,11 +76,11 @@
       "overlap_words": 0
     },
     "name": "structured 200 words",
-    "northwind_chunks": 34,
-    "recall_at_3": 0.8627450980392157,
-    "recall_at_5": 0.8921568627450981,
-    "mrr": 0.9411764705882353,
-    "fact_recall_at_5": 0.8823529411764706,
-    "context_words_at_5": 354.05882352941177
+    "northwind_chunks": 35,
+    "recall_at_3": 0.8583333333333333,
+    "recall_at_5": 0.9083333333333333,
+    "mrr": 0.925,
+    "fact_recall_at_5": 0.9,
+    "context_words_at_5": 360.7
   }
 ]

@@ -25,6 +25,9 @@ Prettier, and types/lint by CI — don't report what those tools catch.
      data fetching only through feature hooks.
    - **Consistency:** does it do something one way where the repo already does it another?
    - **Tests:** is new behavior covered, in the repo's test style?
+   - **Decisions:** does the change contradict an accepted ADR in `docs/decisions/`
+     without a superseding one? Does `docs/requirements.md` still point at the right code
+     and tests?
    - **Explainability:** is there anything the author would struggle to explain in an
      interview — needless abstraction, clever one-liners, unexplained magic numbers?
 

@@ -4,11 +4,14 @@ API := uv --directory apps/api
 WEB := pnpm --dir apps/web
 
 .DEFAULT_GOAL := help
-.PHONY: help services-up services-down api-install api-dev api-format api-check \
-	data-hotpotqa data-synthetic eval-retrieval eval-chunking eval-answers eval-report web-install web-dev web-format web-check
+.PHONY: help docs-check services-up services-down api-install api-dev api-format api-check \
+	data-hotpotqa data-synthetic eval-retrieval eval-chunking eval-answers eval-cross-check eval-report web-install web-dev web-format web-check
 
 help: ## List available targets
-	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-15s %s\n", $$1, $$2}'
+	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-17s %s\n", $$1, $$2}'
+
+docs-check: ## Fail if the docs name a path, make target or ADR that doesn't exist
+	$(API) run python $(CURDIR)/scripts/check_docs.py
 
 services-up: ## Start local Postgres (:5440) and Qdrant (:6333), wait until healthy
 	docker compose up -d --wait
@@ -46,9 +49,13 @@ eval-chunking: ## Compare chunking strategies on Northwind (needs make services-
 	$(API) run python -m investigation_engine.evaluation.chunking \
 		--output $(CURDIR)/docs/evaluation/chunking-northwind.json
 
-eval-answers: ## Ask the 45 evaluation questions (resumable; uses LLM quota)
+eval-answers: ## Ask the 48 evaluation questions, agent and single-shot (resumable; uses LLM quota)
 	$(API) run python -m investigation_engine.evaluation.answers run \
 		--output-dir $(CURDIR)/docs/evaluation/answers
+
+eval-cross-check: ## Ask the 28 Northwind questions with the answer cross-check (uses LLM quota)
+	$(API) run python -m investigation_engine.evaluation.answers run \
+		--output-dir $(CURDIR)/docs/evaluation/answers --config agent-cross-check --northwind-only
 
 eval-report: ## Score the recorded answers (no LLM calls)
 	$(API) run python -m investigation_engine.evaluation.answers report \

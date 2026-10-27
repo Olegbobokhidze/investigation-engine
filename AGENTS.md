@@ -16,7 +16,7 @@ requirements, and the author must defend every line in a technical interview.
 |---|---|
 | `apps/api` | Python 3.12 backend: FastAPI, Pydantic, managed with uv |
 | `apps/web` | React 19 + TypeScript + Vite + Tailwind CSS 4, managed with pnpm |
-| `docs/` | Architecture, evaluation report, AI usage log |
+| `docs/` | Decisions (ADRs), requirements matrix, evaluation report, AI usage log |
 | `.claude/` | Claude Code settings, hooks, subagents and skills |
 
 ## Commands
@@ -30,6 +30,7 @@ Run everything from the repository root through `make` (`make help` lists all ta
 | All backend gates (= CI) | `make api-check` |
 | All frontend gates (= CI) | `make web-check` |
 | Auto-format | `make api-format` · `make web-format` |
+| Docs reference check (= CI) | `make docs-check` |
 
 ## Rules
 
@@ -46,6 +47,12 @@ Run everything from the repository root through `make` (`make help` lists all ta
 5. **Consistency over cleverness.** Match the surrounding code: naming, file layout, error
    handling, comment density. One way to do each thing across the repo.
 6. **Explainable code.** Prefer the obvious implementation. Comments say *why*, not *what*.
+7. **Decisions have evidence.** Major design decisions are recorded in `docs/decisions/`
+   (Context / Decision / Alternatives / Evidence). A change that contradicts an accepted
+   decision adds a new ADR that supersedes it, with its own evidence. `docs/requirements.md`
+   maps each assignment requirement to its code, tests and evidence: update it in the same
+   change. `make docs-check` (also in CI) fails on a path, make target or ADR the docs name
+   that doesn't exist.
 
 ## Cross-app contract
 
