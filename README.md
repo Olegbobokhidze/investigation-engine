@@ -37,7 +37,9 @@ question
   a document with a planted prompt injection.
 - **LLM errors:** timeouts, retries with capped exponential backoff and `Retry-After`, a
   fallback model when the main one keeps failing, then a 502 with a readable message
-  (`llm/client.py`). The client speaks the OpenAI-compatible API (Groq by default).
+  (`llm/client.py`). The client speaks the OpenAI-compatible API: the live demo and the
+  evaluation use `gpt-5-mini` on Azure ([ADR-0010](docs/decisions/0010-azure-gpt-5-mini.md));
+  Groq is the default for local development.
 
 **Ingestion:** PDF, DOCX, Markdown and TXT uploads are parsed, normalized, deduplicated by
 content hash (409 on a duplicate), split by structure-aware chunking and indexed in Postgres
@@ -133,11 +135,11 @@ Results and failure analysis: [`docs/evaluation-report.md`](docs/evaluation-repo
 
 ## Known limitations
 
-- **Free-tier LLM.** Groq's free tier allows 8,000 tokens per minute and a daily token
-  quota; an investigation uses about 4,000 tokens, so bursts of questions wait for the limit
-  and a long evaluation run spans more than one day. So the demo doesn't run dry, the API
-  allows 20 investigations per visitor IP and 40 in total per UTC day (`core/rate_limit.py`;
-  counts are in memory, so a restart resets them).
+- **Credit-funded LLM.** The demo runs on student Azure credit (an investigation costs
+  under a cent). So the credit can't be drained, the API allows 20 investigations per
+  visitor IP and 40 in total per UTC day (`core/rate_limit.py`; counts are in memory, so a
+  restart resets them). Groq's free tier, the local default, allows about 200k tokens a day
+  per model: enough for development, not for a full evaluation run.
 - **PDF paragraphs.** pypdf doesn't preserve paragraph breaks inside a page, so a PDF page's
   text is chunked by sentences rather than by paragraph.
 - **No authentication.** Anyone with the URL can upload and delete *uploaded* documents
