@@ -65,8 +65,8 @@ Run everything from the repository root through `make` (`make help` lists all ta
 - **Endpoints:** `POST /investigations`, `POST /investigations/stream` (Server-Sent Events:
   `step` events, then `result` or `error`), `GET /documents?search=&page=&pageSize=`,
   `POST /documents` (multipart `files`), `PUT /documents/{id}` (multipart `file`),
-  `DELETE /documents/{id}`. Documents have `origin: "dataset" | "upload"`; dataset documents
-  are read-only (`403`).
+  `DELETE /documents/{id}`, `GET /metrics` (operations only; the web app doesn't call it).
+  Documents have `origin: "dataset" | "upload"`; dataset documents are read-only (`403`).
 
 ## Naming
 

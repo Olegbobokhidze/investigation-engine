@@ -1,6 +1,5 @@
 """Retrieval metrics over a ranked list of document ids and the set of relevant ones."""
 
-import math
 from collections.abc import Collection, Iterable, Sequence
 
 
@@ -24,14 +23,3 @@ def reciprocal_rank(ranked: Sequence[str], relevant: Collection[str]) -> float:
         if item in relevant:
             return 1 / rank
     return 0.0
-
-
-def percentile(values: Sequence[float], share: float) -> float:
-    """Nearest-rank percentile: the smallest value with at least `share` of the values at or
-    below it (`share=0.95` is p95). No interpolation, so it is always a measured value."""
-    if not values:
-        raise ValueError("A percentile needs at least one value.")
-    if not 0 < share <= 1:
-        raise ValueError("share must be in (0, 1].")
-    ordered = sorted(values)
-    return ordered[max(math.ceil(share * len(ordered)), 1) - 1]

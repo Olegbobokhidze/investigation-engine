@@ -60,10 +60,51 @@ def test_create_investigation_over_the_daily_cap_is_rate_limited(client: TestCli
     app.state.investigation_quota = DailyQuota(per_client=1, total=10)
     client.post("/investigations", json={"question": "How big is the pool?"})
 
-    response = client.post("/investigations", json={"question": "How big is the pool?"})
+    # A different question: the same one would be answered from the cache.
+    response = client.post("/investigations", json={"question": "Who owns payments-db?"})
 
     assert response.status_code == 429
     assert response.json()["error"]["code"] == "rate_limited"
+
+
+def test_create_investigation_answers_a_repeated_question_from_the_cache(
+    client: TestClient, llm: ScriptedLlm
+) -> None:
+    app = cast(FastAPI, client.app)
+    app.state.investigation_quota = DailyQuota(per_client=1, total=10)
+    client.post("/documents", files=[("files", ("changelog.md", CHANGELOG))])
+    first = client.post("/investigations", json={"question": "How big is the pool?"}).json()
+
+    response = client.post("/investigations", json={"question": "how big is the pool"})
+
+    assert response.status_code == 200  # not 429: a cached answer costs no quota
+    body = response.json()
+    assert body["answer"] == first["answer"]
+    assert body["steps"][0]["title"] == "Reused a recent answer"
+    assert len(llm.calls) == 2  # the plan and the answer of the first request only
+
+
+def _plan_and_answer(answer: str) -> list[Completion]:
+    return [
+        tool_call("plan_investigation", {"sub_questions": ["payments-db pool"]}),
+        tool_call("submit_answer", {"status": "answered", "answer": answer}),
+    ]
+
+
+@pytest.mark.parametrize(
+    "llm",
+    [ScriptedLlm(*_plan_and_answer("50 connections [1]."), *_plan_and_answer("20 [1]."))],
+)
+def test_create_investigation_after_an_upload_does_not_reuse_the_old_answer(
+    client: TestClient,
+) -> None:
+    client.post("/documents", files=[("files", ("runbook.md", b"The pool has 50 connections."))])
+    client.post("/investigations", json={"question": "How big is the pool?"})
+    client.post("/documents", files=[("files", ("changelog.md", CHANGELOG))])
+
+    response = client.post("/investigations", json={"question": "How big is the pool?"})
+
+    assert response.json()["answer"] == "20 [1]."
 
 
 # Overrides the module's `llm` fixture: the app starts without an LLM.
@@ -101,6 +142,25 @@ def test_stream_investigation_sends_each_step_then_the_result(client: TestClient
     result = events[-1][1]
     assert result["answer"] == "The pool went from 50 to 20 connections [1]."
     assert result["steps"] == [data for name, data in events if name == "step"]
+
+
+def test_stream_investigation_sends_a_cached_answer_at_once(client: TestClient) -> None:
+    client.post("/documents", files=[("files", ("changelog.md", CHANGELOG))])
+    client.post("/investigations", json={"question": "How big is the pool?"})
+
+    response = client.post("/investigations/stream", json={"question": "How big is the pool?"})
+
+    events = _events(response.text)
+    assert events[0] == (
+        "step",
+        {
+            "title": "Reused a recent answer",
+            "detail": "The same question was answered less than a minute ago; "
+            "no document has been uploaded, replaced or deleted since.",
+            "result": None,
+        },
+    )
+    assert events[-1][0] == "result"
 
 
 class FailingLlm:

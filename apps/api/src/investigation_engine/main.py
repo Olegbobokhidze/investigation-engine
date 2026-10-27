@@ -4,22 +4,26 @@ Run with `uvicorn --factory investigation_engine.main:create_app`, so settings a
 when the server starts rather than as a side effect of importing this module.
 """
 
-from collections.abc import AsyncIterator
+import time
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.routing import APIRoute
 
 # Importing the models registers their tables with Base.metadata before create_tables runs.
 import investigation_engine.documents.models  # noqa: F401
-from investigation_engine.api.routes import documents, health, investigations
+from investigation_engine.api.routes import documents, health, investigations, metrics
 from investigation_engine.core.config import Settings, get_settings
 from investigation_engine.core.database import Database
 from investigation_engine.core.errors import AppError
 from investigation_engine.core.logging import configure_logging
+from investigation_engine.core.monitoring import Metrics
 from investigation_engine.core.rate_limit import DailyQuota
+from investigation_engine.investigation.cache import InMemoryAnswerCache
 from investigation_engine.llm.client import ChatModel, LlmClient
 from investigation_engine.retrieval.embeddings import Embedder, TextEmbedder
 from investigation_engine.retrieval.reranking import CrossEncoderReranker
@@ -63,6 +67,9 @@ def create_app(
             per_client=settings.investigations_per_client_per_day,
             total=settings.investigations_per_day,
         )
+        app.state.answer_cache = InMemoryAnswerCache(
+            settings.answer_cache_size, settings.answer_cache_ttl_s
+        )
         yield
         if llm_client:
             await llm_client.close()
@@ -70,6 +77,30 @@ def create_app(
         await database.dispose()
 
     app = FastAPI(title="Investigation Engine", version="0.1.0", lifespan=lifespan)
+    live_metrics = Metrics()
+    app.state.metrics = live_metrics
+
+    @app.middleware("http")
+    async def record_request(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        started = time.perf_counter()
+        status_code = 500  # unless a response comes back: an unhandled error is a 500
+        try:
+            response = await call_next(request)
+            status_code = response.status_code
+            return response
+        finally:
+            # The route template (/documents/{document_id}), so ids don't make a series each;
+            # requests that matched no route share one.
+            route = request.scope.get("route")
+            live_metrics.record_request(
+                request.method,
+                route.path if isinstance(route, APIRoute) else "unmatched",
+                status_code,
+                (time.perf_counter() - started) * 1000,
+            )
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
@@ -79,6 +110,7 @@ def create_app(
     app.include_router(health.router)
     app.include_router(documents.router)
     app.include_router(investigations.router)
+    app.include_router(metrics.router)
 
     @app.exception_handler(AppError)
     async def handle_app_error(_: Request, exc: AppError) -> JSONResponse:

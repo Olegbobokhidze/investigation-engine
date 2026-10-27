@@ -22,3 +22,5 @@ exist.
 | [0010](0010-azure-gpt-5-mini.md) | Agent on gpt-5-mini (Azure), judge stays on Groq | accepted | provider switch with no code change |
 | [0011](0011-cross-encoder-reranking.md) | Re-rank the top 20 fused chunks with MiniLM-L-6 | rejected as default | retrieval MRR 0.880 → 0.932, answers not better |
 | [0012](0012-streaming-investigation-steps.md) | Stream investigation steps as Server-Sent Events | accepted | endpoint and reader tests |
+| [0013](0013-answer-cache.md) | Cache answers in memory, cleared on every document change | accepted | cache and API tests |
+| [0014](0014-metrics-endpoint.md) | Live metrics at `GET /metrics` | accepted | metrics tests, live endpoint |

@@ -61,6 +61,11 @@ class Settings(BaseSettings):
     investigations_per_client_per_day: int = Field(default=20, gt=0)
     investigations_per_day: int = Field(default=40, gt=0)
 
+    # Answer cache: recent answers by question; any document change clears it, and the time
+    # limit bounds changes made outside the API (the dataset scripts). 0 entries turns it off.
+    answer_cache_size: int = Field(default=500, ge=0)
+    answer_cache_ttl_s: float = Field(default=24 * 3600, gt=0)
+
     # Embeddings. BGE models are trained with this instruction in front of search queries
     # (not passages); fastembed doesn't add it, so we do.
     embedding_model: str = "BAAI/bge-small-en-v1.5"

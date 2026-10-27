@@ -13,10 +13,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from investigation_engine.core.config import Settings
 from investigation_engine.core.database import Database
 from investigation_engine.core.errors import NotConfiguredError
+from investigation_engine.core.monitoring import Metrics
 from investigation_engine.core.rate_limit import DailyQuota
 from investigation_engine.documents.service import DocumentService
 from investigation_engine.ingestion.chunking import chunker_from_settings
 from investigation_engine.investigation.agent import Investigator
+from investigation_engine.investigation.cache import AnswerCache
 from investigation_engine.llm.client import ChatModel
 from investigation_engine.retrieval.embeddings import TextEmbedder
 from investigation_engine.retrieval.search import Retriever
@@ -62,10 +64,24 @@ InvestigatorDependency = Annotated[Investigator, Depends(get_investigator)]
 
 
 def take_investigation_quota(request: Request) -> None:
-    """Counts the investigation against the caller's daily cap, or answers 429."""
+    """Counts the investigation against the caller's daily cap, or answers 429. Called by
+    the routes rather than as a dependency, so an answer from the cache costs no quota."""
     quota: DailyQuota = request.app.state.investigation_quota
     # Behind Caddy this is the visitor's address: uvicorn reads it from X-Forwarded-For.
     quota.take(request.client.host if request.client else "unknown")
 
 
-InvestigationQuotaDependency = Annotated[None, Depends(take_investigation_quota)]
+def get_answer_cache(request: Request) -> AnswerCache:
+    cache: AnswerCache = request.app.state.answer_cache
+    return cache
+
+
+AnswerCacheDependency = Annotated[AnswerCache, Depends(get_answer_cache)]
+
+
+def get_metrics(request: Request) -> Metrics:
+    metrics: Metrics = request.app.state.metrics
+    return metrics
+
+
+MetricsDependency = Annotated[Metrics, Depends(get_metrics)]

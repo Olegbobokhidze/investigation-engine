@@ -17,7 +17,7 @@ from pathlib import Path
 
 import httpx
 
-from investigation_engine.evaluation.metrics import percentile
+from investigation_engine.core.percentiles import percentile
 
 # (name, path): the document list is searched, so the request reaches Postgres.
 ENDPOINTS = [

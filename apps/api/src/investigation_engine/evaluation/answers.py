@@ -32,9 +32,9 @@ from pydantic import BaseModel, ValidationError
 from investigation_engine.core.config import Settings, get_settings
 from investigation_engine.core.errors import UpstreamError
 from investigation_engine.core.logging import configure_logging
+from investigation_engine.core.percentiles import percentile
 from investigation_engine.datasets.hotpotqa import document_id, download
 from investigation_engine.evaluation.metrics import (
-    percentile,
     recall_at_k,
     reciprocal_rank,
     unique_in_order,

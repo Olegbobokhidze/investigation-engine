@@ -206,12 +206,13 @@ committed last, and a failure rolls the row back
 
 | Endpoint | |
 |---|---|
-| `POST /investigations` | `{question}` → answer, cited sources, conflicts, steps; 429 past the daily cap |
+| `POST /investigations` | `{question}` → answer, cited sources, conflicts, steps; a repeated question comes from the cache; 429 past the daily cap |
 | `POST /investigations/stream` | the same, as Server-Sent Events: a `step` event as each step is taken, then `result` or `error`; the UI uses it to show progress |
 | `GET /documents?search=&page=&pageSize=` | paginated document list |
 | `POST /documents` | multipart `files`: one result per file (indexed, duplicate or failed) |
 | `PUT /documents/{id}` | multipart `file`: replace an uploaded document |
 | `DELETE /documents/{id}` | delete an uploaded document and its chunks |
+| `GET /metrics` | requests, errors and latency per route; investigations, tokens and cache hits ([live](https://13-53-155-129.sslip.io/metrics)) |
 
 ## Key decisions
 
@@ -226,6 +227,8 @@ file or make target that doesn't exist.
 | Hybrid search with our weighted RRF, k=10 | Recall@10 0.875 vs 0.792 dense, 0.785 BM25; k=10 beat the paper's 60 | [ADR-0003](docs/decisions/0003-hybrid-search-rrf.md) |
 | A cross-encoder reranker: **off by default** | retrieval MRR 0.880 → 0.932, but the answers weren't better (0.69 vs 0.79), so the end-to-end result decides | [ADR-0011](docs/decisions/0011-cross-encoder-reranking.md) |
 | Steps streamed as Server-Sent Events | 20 s of progress instead of a spinner; the answer is shown only after its citations are checked | [ADR-0012](docs/decisions/0012-streaming-investigation-steps.md) |
+| Answers cached in memory, cleared on any document change | a repeat costs no LLM call or quota; one instance, so Redis would add a service for nothing yet | [ADR-0013](docs/decisions/0013-answer-cache.md) |
+| Live metrics at `GET /metrics` | errors, latency, tokens and cache hits without a monitoring stack the free tier can't host | [ADR-0014](docs/decisions/0014-metrics-endpoint.md) |
 | Structure-aware chunks, 200 words | best Recall@3/5 at a third less context | [ADR-0004](docs/decisions/0004-structured-chunking.md) |
 | Plan, then a bounded tool loop | beats single-shot on multi-hop and contradictions | [ADR-0005](docs/decisions/0005-agent-loop.md) |
 | Citations checked in code | a hallucinated `[7]` never reaches the user | [ADR-0006](docs/decisions/0006-verified-citations.md) |
@@ -347,7 +350,8 @@ The main ones; the evaluation's own limits are in [section 8 of the report](docs
   answers, and it sometimes stops one hop early (report, section 7).
 - **Credit-funded LLM.** The demo runs on student Azure credit. So the credit can't be
   drained, the API allows 20 investigations per visitor IP and 40 in total per UTC day
-  (counts are in memory, so a restart resets them).
+  (counts are in memory, so a restart resets them, as it does the answer cache and the
+  metrics).
 - **No authentication.** Anyone with the URL can upload and delete *uploaded* documents
   (datasets are read-only, 403).
 - **PDF paragraphs.** pypdf doesn't keep paragraph breaks inside a page, so a PDF page is

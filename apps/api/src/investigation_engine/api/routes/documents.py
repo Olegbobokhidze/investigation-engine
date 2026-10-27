@@ -3,7 +3,7 @@ from typing import Annotated
 import structlog
 from fastapi import APIRouter, Query, Request, Response, UploadFile, status
 
-from investigation_engine.api.dependencies import DocumentServiceDependency
+from investigation_engine.api.dependencies import AnswerCacheDependency, DocumentServiceDependency
 from investigation_engine.api.schemas.base import ErrorDetail
 from investigation_engine.api.schemas.documents import (
     DocumentPageResponse,
@@ -56,7 +56,10 @@ async def list_documents(
 
 @router.post("")
 async def upload_documents(
-    request: Request, service: DocumentServiceDependency, files: list[UploadFile]
+    request: Request,
+    service: DocumentServiceDependency,
+    cache: AnswerCacheDependency,
+    files: list[UploadFile],
 ) -> UploadResponse:
     """Indexes each file independently: one bad file doesn't fail the others."""
     if len(files) > MAX_FILES_PER_UPLOAD:
@@ -99,20 +102,31 @@ async def upload_documents(
                     ),
                 )
             )
+    if any(isinstance(result, IndexedUploadResult) for result in results):
+        # A new document can change any earlier answer.
+        cache.clear()
     return UploadResponse(results=results)
 
 
 @router.put("/{document_id}")
 async def replace_document(
-    document_id: str, request: Request, service: DocumentServiceDependency, file: UploadFile
+    document_id: str,
+    request: Request,
+    service: DocumentServiceDependency,
+    cache: AnswerCacheDependency,
+    file: UploadFile,
 ) -> DocumentResponse:
     settings: Settings = request.app.state.settings
     content = await _read_limited(file, settings.max_upload_bytes)
     document = await service.replace(document_id, content, file.filename or "untitled")
+    cache.clear()
     return DocumentResponse.model_validate(document)
 
 
 @router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_document(document_id: str, service: DocumentServiceDependency) -> Response:
+async def delete_document(
+    document_id: str, service: DocumentServiceDependency, cache: AnswerCacheDependency
+) -> Response:
     await service.delete(document_id)
+    cache.clear()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

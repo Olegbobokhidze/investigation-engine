@@ -13,6 +13,37 @@ Each entry: **Task** · **AI contribution** · **Author decisions** · **Verific
 
 ## 2026-10-27
 
+### Caching and metrics
+
+- **Task:** the last two bonus items: caching, and observability beyond logs.
+- **AI contribution:** an in-memory answer cache (`investigation/cache.py`) checked before
+  the daily quota, cleared on every upload, replace and delete, with a time limit and least
+  recently used eviction; live metrics per route and for investigations (`core/monitoring.py`,
+  a request middleware, `GET /metrics`); moved `percentile` to `core/` so the metrics and the
+  evaluation share it; ADR-0013 and ADR-0014.
+- **Author decisions:** asked for every bonus item; asked whether to use Redis and, after
+  the trade-off was laid out, chose the in-memory cache behind a protocol; dropped a
+  CloudWatch dashboard in favour of the endpoint.
+- **Mistakes caught:** the existing rate-limit test asked the same question twice and
+  started passing through the cache; it now asks a different second question.
+- **Verification:** unit tests for the cache and the metrics, API tests for a repeated
+  question (no LLM call, no quota), an upload making the next answer fresh, the cached
+  stream and route templates in the metrics; `make api-check`, `make docs-check`.
+
+### Web app polish
+
+- **Task:** make the live investigation and the documents page feel responsive.
+- **AI contribution:** a thinking orb that follows the agent's current activity and a
+  border beam on the running investigation (`thinking-orbs`, `border-beam`); steps that
+  fade in as they arrive; the verified answer written out a word at a time
+  (`useRevealedText`, skipped under reduced motion); skeleton rows and a search spinner on
+  the documents page; skipping a search request when a shorter search inside it already
+  found nothing.
+- **Author decisions:** asked for a full-width search field, questioned why a request was
+  still sent while typing after an empty result, and asked for animated streaming.
+- **Verification:** unit tests for the reveal hook and the empty-search rule;
+  `make web-check`.
+
 ### Re-ranking and streaming
 
 - **Task:** the two bonus items the other submission had left out.

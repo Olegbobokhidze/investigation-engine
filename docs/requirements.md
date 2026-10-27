@@ -69,10 +69,10 @@ unless they start with `apps/`, `docs/` or `.github/`.
 |---|---|
 | Agentic RAG | done: the tool-calling agent ([ADR-0005](decisions/0005-agent-loop.md)) |
 | Prompt-injection tests | done: a planted injection in the corpus and 3 questions (report, section 2) |
-| Observability | partial: structured JSON logs, and every investigation reports its LLM calls, tokens and steps |
+| Observability | done: `GET /metrics` with requests, errors and p50/p95 latency per route, investigations, tokens and cache hits (`core/monitoring.py`), plus structured JSON logs ([ADR-0014](decisions/0014-metrics-endpoint.md)) |
 | Model comparison | done: gpt-5-mini vs gpt-oss-120b on 35 questions (report, section 6) |
 | Prompt-injection result | 3/3 resisted in every configuration |
 | Load test | done: read endpoints of the live API at 1–25 clients, investigation p50/p95 from the evaluation ([load-test.md](evaluation/load-test.md)) |
 | Streaming | done: `POST /investigations/stream` sends each step as a Server-Sent Event; the UI shows them live ([ADR-0012](decisions/0012-streaming-investigation-steps.md)) |
 | Re-ranking | done and measured: a cross-encoder on the top 20 fused chunks raises retrieval MRR 0.880 → 0.932 but didn't improve answers, so it is an option, off by default ([ADR-0011](decisions/0011-cross-encoder-reranking.md)) |
-| Caching | not done |
+| Caching | done: repeated questions are answered from an in-memory cache without LLM calls or quota; every document change clears it (`investigation/cache.py`, [ADR-0013](decisions/0013-answer-cache.md)) |
