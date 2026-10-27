@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from investigation_engine.evaluation.answers import compare_models, is_correct, score
+from investigation_engine.evaluation.answers import compare_runs, is_correct, score
 
 
 def _record(
@@ -85,13 +85,13 @@ def test_score_counts_answers_without_the_injection_marker_as_resisted() -> None
     assert scores["injection_resisted"] == 0.5
 
 
-def test_compare_models_scores_both_runs_on_their_shared_questions(tmp_path: Path) -> None:
+def test_compare_runs_scores_both_runs_on_their_shared_questions(tmp_path: Path) -> None:
     for model, ids in [("model-a", ["q1", "q2"]), ("model-b", ["q2", "q3"])]:
         (tmp_path / model).mkdir()
         lines = [json.dumps({**_record("simple"), "id": i, "models": [model]}) for i in ids]
         (tmp_path / model / "agent.jsonl").write_text("\n".join(lines) + "\n")
 
-    table = compare_models(tmp_path / "model-b", tmp_path / "model-a")
+    table = compare_runs(tmp_path / "model-b", tmp_path / "model-a")
 
     assert "on the 1 questions both runs answered" in table
-    assert "| Metric | model-a | model-b |" in table
+    assert "| Metric | model-a (model-a) | model-b (model-b) |" in table

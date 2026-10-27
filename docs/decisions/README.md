@@ -14,7 +14,7 @@ exist.
 | [0002](0002-postgres-and-qdrant.md) | Postgres is the source of truth, Qdrant the search index | accepted | document API tests |
 | [0003](0003-hybrid-search-rrf.md) | Hybrid search fused with weighted RRF, k=10 | accepted | retrieval evaluation, 200 questions |
 | [0004](0004-structured-chunking.md) | Structure-aware chunking, 200 words | accepted | chunking evaluation |
-| [0005](0005-agent-loop.md) | Plan, then a bounded tool-calling loop | accepted | 0.79 vs 0.65 correct, 48 questions |
+| [0005](0005-agent-loop.md) | Plan, then a bounded tool-calling loop | accepted | 0.79 vs 0.67 correct, 48 questions |
 | [0006](0006-verified-citations.md) | Citations checked in code; none valid → abstain | accepted | citation tests and metrics |
 | [0007](0007-llm-provider.md) | OpenAI-compatible client on Groq, with a fallback model | partly superseded by 0010 | LLM client tests |
 | [0008](0008-deployment.md) | API on EC2 behind Caddy, web on Vercel | accepted | live health check |

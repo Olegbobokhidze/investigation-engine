@@ -33,10 +33,9 @@ compares against, with the same prompts, tools and verification.
 ## Evidence
 
 The answer evaluation in [`docs/evaluation-report.md`](../evaluation-report.md), section 6,
-48 questions: the agent is right on 0.79 against 0.65 for single-shot; HotpotQA multi-hop
-15/20 against 11/20; contradictions 0.83 against 0.33. It costs 3.5 LLM calls and 8.2k
-tokens per question against 1 and 3.0k. Single-shot is better on simple questions (0.88
-against 0.75). Behaviour is pinned by `apps/api/tests/investigation/test_agent.py`.
+48 questions: the agent is right on 0.79 against 0.67 for single-shot; HotpotQA multi-hop
+15/20 against 12/20; contradiction recall 0.67 against 0.17. It costs 3.1 LLM calls and 7.0k
+tokens per question against 1 and 2.9k. On simple questions both reach 0.88. Behaviour is pinned by `apps/api/tests/investigation/test_agent.py`.
 
 ## Consequences
 

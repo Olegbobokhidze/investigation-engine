@@ -5,7 +5,7 @@ WEB := pnpm --dir apps/web
 
 .DEFAULT_GOAL := help
 .PHONY: help docs-check services-up services-down api-install api-dev api-format api-check \
-	data-hotpotqa data-synthetic eval-retrieval eval-chunking eval-answers eval-cross-check eval-report eval-models web-install web-dev web-format web-check
+	data-hotpotqa data-synthetic eval-retrieval eval-chunking eval-answers eval-cross-check eval-report eval-models eval-prompts web-install web-dev web-format web-check
 
 help: ## List available targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-17s %s\n", $$1, $$2}'
@@ -61,10 +61,15 @@ eval-report: ## Score the recorded answers (no LLM calls)
 	$(API) run python -m investigation_engine.evaluation.answers report \
 		--output-dir $(CURDIR)/docs/evaluation/answers
 
-eval-models: ## Compare the agent on gpt-5-mini with the earlier gpt-oss-120b run (no LLM calls)
+eval-models: ## Compare gpt-5-mini with gpt-oss-120b, same prompt (no LLM calls)
+	$(API) run python -m investigation_engine.evaluation.answers compare \
+		--output-dir $(CURDIR)/docs/evaluation/answers-prompt-v1 \
+		--baseline-dir $(CURDIR)/docs/evaluation/answers-gpt-oss-120b
+
+eval-prompts: ## Compare the current prompt with prompt v1, both on gpt-5-mini (no LLM calls)
 	$(API) run python -m investigation_engine.evaluation.answers compare \
 		--output-dir $(CURDIR)/docs/evaluation/answers \
-		--baseline-dir $(CURDIR)/docs/evaluation/answers-gpt-oss-120b
+		--baseline-dir $(CURDIR)/docs/evaluation/answers-prompt-v1
 
 web-install: ## Install frontend dependencies
 	$(WEB) install

@@ -57,10 +57,10 @@ def code_path_exists(code: str) -> bool | None:
     path = code.rstrip("/").split(":")[0]  # "file.py:42" names a line in file.py
     if " " in code or "*" in code:
         return None
-    if is_git_ignored(path):
-        # Local-only files (`apps/api/.env`) exist on a laptop but never in CI.
-        return None
     if code.startswith(PATH_ROOTS):
+        if is_git_ignored(path):
+            # Local-only files (`apps/api/.env`) exist on a laptop but never in CI.
+            return None
         return (ROOT / path).exists()
     if code.startswith(tuple(PACKAGE_DIRS)) and path.endswith(".py"):
         return (PACKAGE / path).exists()

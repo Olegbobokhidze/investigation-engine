@@ -8,7 +8,7 @@ Two steps, so scoring never spends LLM quota again:
     run     asks every question with each configuration and appends one JSON line per
             answer; resumable: questions already in the file are skipped
     report  computes the metrics from those files and prints Markdown tables
-    compare scores the agent of two runs (e.g. two models) on their shared questions
+    compare scores the agent of two runs (two models or two prompts) on their shared questions
 
 Run from apps/api against the loaded corpus:
     uv run python -m investigation_engine.evaluation.answers run --output-dir DIR
@@ -225,6 +225,8 @@ async def _record_answers(
             path,
             {
                 **asdict(question),
+                # `answer` below is the system's; the question's own `answer` is the gold one.
+                "gold_answer": question.answer,
                 "status": investigation.status,
                 "answer": investigation.answer,
                 "conflicts": [conflict.summary for conflict in investigation.conflicts],
@@ -436,17 +438,18 @@ def report(output_dir: Path) -> str:
     return "\n".join(lines)
 
 
-def _model_name(records: list[dict[str, object]]) -> str:
+def _run_label(directory: Path, records: list[dict[str, object]]) -> str:
+    """The model the provider reported, and the run's directory: two runs may share a model."""
     models = _strings(records[0]["models"]) if records else []
-    return models[0] if models else "unknown"
+    return f"{models[0] if models else 'unknown'} ({directory.name})"
 
 
-def compare_models(output_dir: Path, baseline_dir: Path) -> str:
-    """The agent of two runs (e.g. two models) on the questions both answered. Columns are
-    named after the model that answered, as the provider reported it."""
+def compare_runs(output_dir: Path, baseline_dir: Path) -> str:
+    """The agent of two runs (two models, or two prompts) on the questions both answered."""
     runs = {
-        _model_name(records): records
-        for records in (_read(baseline_dir / "agent.jsonl"), _read(output_dir / "agent.jsonl"))
+        _run_label(directory, records): records
+        for directory in (baseline_dir, output_dir)
+        if (records := _read(directory / "agent.jsonl"))
     }
     shared = set.intersection(*({str(r["id"]) for r in records} for records in runs.values()))
     scores = {
@@ -479,7 +482,7 @@ def main() -> None:
     elif arguments.command == "compare":
         if arguments.baseline_dir is None:
             parser.error("compare needs --baseline-dir")
-        print(compare_models(arguments.output_dir, arguments.baseline_dir))
+        print(compare_runs(arguments.output_dir, arguments.baseline_dir))
     else:
         print(report(arguments.output_dir))
 
